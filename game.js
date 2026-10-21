@@ -418,22 +418,55 @@ a.root.setDepth(contact);a.shadow.setDepth(contact-1);
   await Promise.all([move(portrait,{x:900,alpha:0},180),move(panel,{alpha:0},180),move(edge,{alpha:0},180),move(label,{alpha:0},180),move(title,{alpha:0},180)]);
   for(const o of [panel,edge,portrait,label,title])o.destroy();
  }
+ hammerGroundImpact(x,y,speed){
+  const cracks=this.add.graphics().setDepth(76);
+  cracks.fillStyle(0x251c16,.42).fillEllipse(x,y,100,29);cracks.lineStyle(3,0xbaa06b,.6).strokeEllipse(x,y,106,31);
+  for(let i=0;i<11;i++){
+   const a=i*Math.PI*2/11+.14,len=65+i%4*18,points=[{x,y}];
+   for(let j=1;j<=4;j++){const d=len*j/4,side=(j%2?1:-1)*(3+i%3*2);points.push({x:x+Math.cos(a)*d+Math.sin(a)*side,y:y+Math.sin(a)*d*.33+Math.cos(a)*side*.5})}
+   cracks.lineStyle(5,0x292019,.82).strokePoints(points,false);cracks.lineStyle(1,0xe1c18c,.72).strokePoints(points.map(p=>({x:p.x+1,y:p.y+2})),false);
+   const fork=points[2],b=a+(i%2?-.65:.65);cracks.lineStyle(2,0x30231a,.8).lineBetween(fork.x,fork.y,fork.x+Math.cos(b)*30,fork.y+Math.sin(b)*12);
+  }
+  this.tweens.add({targets:cracks,alpha:0,delay:650*speed,duration:850*speed,onComplete:()=>cracks.destroy()});
+  for(let i=0;i<3;i++){const ring=this.add.ellipse(x,y,32,9,0xe9cf99,0).setStrokeStyle(i===0?3:1,0xe9cf99,.38).setDepth(77);this.tweens.add({targets:ring,scaleX:7+i*2,scaleY:4+i,alpha:0,delay:i*45*speed,duration:(330+i*90)*speed,onComplete:()=>ring.destroy()})}
+  for(let i=0;i<36;i++){
+   const a=i*2.399,range=42+i%7*16,lift=26+i%6*12,size=3+i%5,landX=x+Math.cos(a)*range,landY=y+Math.sin(a)*range*.32;
+   const shadow=this.add.ellipse(x,y,size*2,size*.7,0x1a1711,.3).setDepth(78),rock=this.add.graphics().setPosition(x,y).setDepth(520+i%3);
+   rock.fillStyle(i%2?0x88785f:0xa38d69).fillPoints([{x:-size,y:-size*.3},{x:-size*.4,y:-size},{x:size*.7,y:-size*.6},{x:size,y:size*.4},{x:0,y:size*.7}],true);rock.fillStyle(0xd7c298,.85).fillTriangle(-size,-size*.3,-size*.4,-size,size*.7,-size*.6);rock.fillStyle(0x514737,.9).fillTriangle(0,0,size*.7,-size*.6,size,size*.4);
+   this.tweens.add({targets:{flight:0},flight:1,duration:(420+i%5*50)*speed,onUpdate:t=>{const p=t.progress;rock.x=x+(landX-x)*p;rock.y=y+(landY-y)*p-Math.sin(p*Math.PI)*lift;rock.rotation=p*(i%2?3:-3);shadow.x=rock.x;shadow.y=y+(landY-y)*p;shadow.alpha=.3*(1-.5*Math.sin(p*Math.PI))},onComplete:()=>{this.tweens.add({targets:rock,alpha:0,delay:160*speed,duration:280*speed,onComplete:()=>rock.destroy()});this.tweens.add({targets:shadow,alpha:0,delay:160*speed,duration:280*speed,onComplete:()=>shadow.destroy()})}});
+  }
+  for(let i=0;i<15;i++){const a=i*2.399,g=this.add.graphics().setPosition(x,y).setDepth(510).setAlpha(.32);g.fillStyle(0xbfa67c).fillRect(-8,-4,16,8).fillRect(-5,-7,10,14);this.tweens.add({targets:g,x:x+Math.cos(a)*(40+i%5*15),y:y+Math.sin(a)*22-8-i%3*10,scaleX:1.7,scaleY:1.4,alpha:0,duration:(350+i%4*90)*speed,onComplete:()=>g.destroy()})}
+  this.cameras.main.flash(70*speed,216,191,143);this.cameras.main.shake(230*speed,.012);
+ }
+ hammerSpinImpact(x,y,speed){
+  const slash=this.add.graphics().setPosition(x,y).setDepth(585),points=[];for(let i=0;i<=16;i++){const a=-.7+i*Math.PI*1.4/16;points.push({x:Math.cos(a)*113,y:Math.sin(a)*29})}
+  slash.lineStyle(13,0xe7b66a,.17).strokePoints(points,false);slash.lineStyle(5,0xffe0a6,.6).strokePoints(points,false);slash.lineStyle(1.5,0xfffae4,.95).strokePoints(points,false);this.tweens.add({targets:slash,scaleX:1.25,alpha:0,duration:230*speed,onComplete:()=>slash.destroy()});
+  for(let i=0;i<25;i++){const a=i*2.399,p=this.add.rectangle(x,y,i%3===0?6:2,2,i%3?0xffd69b:0xfff8dd).setRotation(a).setDepth(590);this.tweens.add({targets:p,x:x+Math.cos(a)*(30+i%6*14),y:y+Math.sin(a)*(12+i%4*9),alpha:0,duration:(160+i%4*45)*speed,onComplete:()=>p.destroy()})}
+  const dust=this.add.ellipse(x,y+43,40,7,0xbca477,.22).setDepth(77);this.tweens.add({targets:dust,scaleX:4,alpha:0,duration:280*speed,onComplete:()=>dust.destroy()});this.cameras.main.flash(55*speed,225,200,155);this.cameras.main.shake(150*speed,.008);
+ }
+
  async bossAttack(a,b,skill,speed,onHit){
   const wait=ms=>new Promise(r=>this.time.delayedCall(ms*speed,r)),move=(y,ms)=>new Promise(resolve=>this.tweens.add({targets:a.root,y,duration:ms*speed,ease:'Cubic.easeOut',onUpdate:()=>{a.shadow.x=a.root.x;a.shadow.y=a.root.y+3;a.shadow.setDepth(a.root.y-1)},onComplete:()=>{a.shadow.y=y+3;resolve()}}));
-  const dodged=this.rollEvasion(),home=a.homeY;let dodgeMotion=null;
+  const dodged=this.rollEvasion(),home=a.homeY;let dodgeMotion=null,struck=false;
   this.setBossPose(a,1);await move(home-5,140);await wait(170);
-  if(dodged)dodgeMotion=this.evade(b,speed);
   if(skill===0){
-   this.setBossPose(a,2);await wait(290);window.GameAudio?.sfx('bossSlam');this.setBossPose(a,3);await move(home+57,110);
-   const dust=this.add.ellipse(a.root.x,a.root.y+18,20,6,0xd8bb84,.3).setDepth(a.root.y-2);this.tweens.add({targets:dust,scaleX:5,scaleY:2,alpha:0,duration:300*speed,onComplete:()=>dust.destroy()});
-   const crack=this.add.graphics().setDepth(490);for(let i=0;i<7;i++){const angle=i*Math.PI/3.5;crack.lineStyle(2,0x362a22,.65).lineBetween(400,302,400+Math.cos(angle)*40,302+Math.sin(angle)*13)}this.tweens.add({targets:crack,alpha:0,duration:550*speed,onComplete:()=>crack.destroy()});
+   this.setBossPose(a,2);await wait(290);if(dodged)dodgeMotion=this.evade(b,speed);window.GameAudio?.sfx('bossSlam');this.setBossPose(a,3);await move(home+57,110);
+   this.hammerGroundImpact(a.root.x,a.root.y+23,speed);
   }else{
-   await move(home+48,140);window.GameAudio?.sfx('bossSpin');
+   // Hold the hammer behind the torso before a compact explosive full turn.
+   this.setBossPose(a,0,true);window.GameAudio?.sfx('bossSpinCharge');
+   const charge=this.add.graphics().setPosition(a.root.x,a.root.y+3).setDepth(a.root.y-2).setAlpha(.2).setScale(1.4);
+   charge.lineStyle(1,0xe6bd78,.6).strokeEllipse(0,0,80,23);charge.lineStyle(1,0xe6bd78,.25).strokeEllipse(0,0,100,29);
+   this.tweens.add({targets:charge,scaleX:.5,scaleY:.5,alpha:.85,duration:510*speed,ease:'Cubic.easeIn'});
+   for(let i=0;i<14;i++){const a0=i*2.399,p=this.add.rectangle(a.root.x+Math.cos(a0)*50,a.root.y-50+Math.sin(a0)*32,2,2,0xf1d8a4).setDepth(580);this.tweens.add({targets:p,x:a.root.x-28,y:a.root.y-52,alpha:0,delay:i*17*speed,duration:310*speed,onComplete:()=>p.destroy()})}
+   await wait(520);charge.destroy();if(dodged)dodgeMotion=this.evade(b,speed);await move(home+48,65);window.GameAudio?.sfx('bossSpin');
+   const frames=[30,25,25,20,20,25,45,65];
    for(let i=0;i<8;i++){
-    this.setBossPose(a,i,true);const arc=this.add.graphics().setPosition(a.root.x,a.root.y-45).setDepth(495);arc.lineStyle(7,0xddbd86,.15).beginPath().arc(0,0,64,i*.78,i*.78+1.5).strokePath();arc.lineStyle(2,0xffe8bb,.6).beginPath().arc(0,0,64,i*.78,i*.78+1.05).strokePath();this.tweens.add({targets:arc,alpha:0,duration:150*speed,onComplete:()=>arc.destroy()});await wait(55);
+    this.setBossPose(a,i,true);const arc=this.add.graphics().setPosition(a.root.x,a.root.y-45).setDepth(495);arc.lineStyle(11,0xddbd86,.2).beginPath().arc(0,0,77,i*.78,i*.78+2).strokePath();arc.lineStyle(3,0xffe8bb,.75).beginPath().arc(0,0,77,i*.78,i*.78+1.6).strokePath();this.tweens.add({targets:arc,alpha:0,duration:160*speed,onComplete:()=>arc.destroy()});
+    if(i===6){this.hammerSpinImpact(a.root.x,a.root.y-40,speed);onHit(dodged);struck=true}await wait(frames[i]);
    }
   }
-  onHit(dodged);
+  if(!struck)onHit(dodged);
   if(!dodged){b.sprite.setTintFill(0xffddbd);this.cameras.main.shake(180*speed,skill===0?.009:.006);await wait(90);b.sprite.clearTint()}else{const miss=this.add.text(b.root.x,b.homeY-90,'회피',{fontSize:17,color:'#d9f4ed',stroke:'#294238',strokeThickness:3}).setOrigin(.5).setDepth(600);this.tweens.add({targets:miss,y:miss.y-14,alpha:0,duration:650*speed,onComplete:()=>miss.destroy()});await wait(90)}
   this.setBossPose(a,4);await wait(140);await move(home,250);this.setBossPose(a,0);a.shadow.setDepth(home-1);if(dodgeMotion)await dodgeMotion;
  }
