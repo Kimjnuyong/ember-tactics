@@ -435,24 +435,22 @@ a.root.setDepth(contact);a.shadow.setDepth(contact-1);
   charge.fillStyle(0xe5eff1,.85).fillRect(snap(x-len),snap(y),len*2,2).fillRect(snap(x),snap(y-len),2,len*2);
   charge.fillStyle(0xfff8df).fillRect(snap(x-core/2),snap(y-core/2),core,core);
  }
- hammerVortex(back,front,x,y,phase,power=1){
-  back.clear();front.clear();const snap=n=>Math.round(n/2)*2;
-  // A helical volume: rear ribbons pass behind the body, front ribbons cross it.
-  for(let strand=0;strand<3;strand++){
-   const offset=strand*2.1,radius=78+strand*8;
-   for(let step=0;step<92;step++){
-    const t=step/91,angle=phase+offset+t*4.65,sin=Math.sin(angle),cos=Math.cos(angle),g=sin<0?back:front;
-    const curl=Math.sin(t*Math.PI),width=(2+6*curl)*power;
-    const px=x+cos*(radius+Math.sin(t*9+phase)*3),py=y-48+sin*25+(t-.5)*26+(strand-1)*13;
-    // Overlapping, shaded two-pixel clusters make a continuous twisting flame band.
-    const palette=sin<0?[0xa8472c,0xd96829,0xf4a33e]:[0xc15128,0xf38529,0xffbc50];
-    for(let band=0;band<3;band++){
-     const w=Math.max(2,Math.round(width*(1-band*.26)/2)*2);
-     g.fillStyle(palette[band],sin<0?.66:.94).fillRect(snap(px-w/2),snap(py-w*.35-band),w,Math.max(2,snap(w*.7)));
-    }
-    if(step%13===strand*2){const tip=8+curl*7;for(let k=0;k<tip;k+=2){g.fillStyle(k<4?0xffde87:0xeb7a2a,.9).fillRect(snap(px-cos*k*.5),snap(py-k),Math.max(2,snap(6-k*.22)),2)}}
-    if(curl>.5&&step%3!==0)g.fillStyle(0xffe6a0,.8).fillRect(snap(px),snap(py-2),2,2);
+ hammerSwingArc(g,x,y,progress){
+  g.clear();const snap=n=>Math.round(n/2)*2;
+  // One directional, tapered slash: a thin left tail and a bright hammer-led tip.
+  // Endpoints match the hammer head in spin poses 5 and 6 (118/310 sprite scale).
+  const point=t=>{const u=1-t;return{x:u*u*u*-84+3*u*u*t*-112+3*u*t*t*88+t*t*t*69,y:u*u*u*-61+3*u*u*t*17+3*u*t*t*30+t*t*t*-49}};
+  const end=Math.min(1,progress);
+  for(let t=0;t<=end;t+=.006){
+   const p=point(t),q=point(Math.min(1,t+.005)),dx=q.x-p.x,dy=q.y-p.y,len=Math.sqrt(dx*dx+dy*dy)||1,nx=-dy/len,ny=dx/len;
+   const width=(1+17*Math.pow(t,1.35))*Math.min(1,(end-t)*24+.15);
+   const palette=[0xc1582c,0xec7f2d,0xffb94e,0xffde8c,0xfff2c3];
+   for(let across=-width;across<=width;across+=1.5){
+    const heat=1-Math.abs(across)/Math.max(1,width),index=Math.min(4,Math.floor(heat*5));
+    g.fillStyle(palette[index],t<.12?.55:.95).fillRect(snap(x+p.x+nx*across),snap(y+p.y+ny*across),2,2);
    }
+   // Small flame tongues peel backwards from the cool edge, along the same curve.
+   if(Math.floor(t*160)%19===0&&t>.2&&t<end-.06)for(let k=2;k<10;k+=2){g.fillStyle(k<5?0xfba13d:0xd56b2b,.8).fillRect(snap(x+p.x+nx*(width+k)-dx/len*k),snap(y+p.y+ny*(width+k)-dy/len*k),2,2)}
   }
  }
  hammerGroundImpact(x,y,speed){
@@ -526,17 +524,22 @@ a.root.setDepth(contact);a.shadow.setDepth(contact-1);
    const charge=this.add.graphics().setDepth(580),hx=a.root.x-81,hy=a.root.y-59;
    for(let frame=0;frame<12;frame++){this.hammerEnergy(charge,hx,hy,frame);await wait(65)}
    charge.destroy();if(dodged)dodgeMotion=this.evade(b,speed);await move(home+48,95);window.GameAudio?.sfx('bossSpin');
-   const frames=[85,70,55,45,45,60,90,115],back=this.add.graphics().setDepth(a.root.depth-1),front=this.add.graphics().setDepth(a.root.depth+1);
+   const frames=[85,70,55,45,45,60,90,115],slash=this.add.graphics().setDepth(a.root.depth+1);
    for(let i=0;i<8;i++){
-    this.setBossPose(a,i,true);this.hammerVortex(back,front,a.root.x,a.root.y,i*Math.PI/4,1);
+    this.setBossPose(a,i,true);
     if(i===6){
+     this.hammerSwingArc(slash,a.root.x,a.root.y,1);
+     this.tweens.add({targets:slash,alpha:0,delay:40*speed,duration:130*speed});
      this.hammerSpinImpact(b.root.x,b.homeY-48,speed);onHit(dodged);struck=true;
      if(!dodged)b.sprite.setTintFill(0xffdfa0);
      await wait(dodged?80:180);b.sprite.clearTint();
     }
-    for(let sub=0;sub<3;sub++){this.hammerVortex(back,front,a.root.x,a.root.y,(i+sub/3)*Math.PI/4,1-i/24);await wait(frames[i]/3)}
+    for(let sub=0;sub<3;sub++){
+     if(i===4||i===5)this.hammerSwingArc(slash,a.root.x,a.root.y,(i-4+sub/3)/2);
+     await wait(frames[i]/3);
+    }
    }
-   back.destroy();front.destroy();
+   slash.destroy();
   }
   if(!struck)onHit(dodged);
   if(!dodged){b.sprite.setTintFill(0xffddbd);this.cameras.main.shake(180*speed,skill===0?.009:.006);await wait(90);b.sprite.clearTint()}else{const miss=this.add.text(b.root.x,b.homeY-90,'회피',{fontSize:17,color:'#d9f4ed',stroke:'#294238',strokeThickness:3}).setOrigin(.5).setDepth(600);this.tweens.add({targets:miss,y:miss.y-14,alpha:0,duration:650*speed,onComplete:()=>miss.destroy()});await wait(90)}

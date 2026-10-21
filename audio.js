@@ -28,7 +28,7 @@
   if(kind==='bossSpinCharge'){tone(sfxBus,180,t,.78,.11,'triangle',880);tone(sfxBus,540,t,.78,.045,'sine',1760);tone(sfxBus,1100,t+.48,.28,.04,'sine',2200);noise(t,.72,.045,1100)}
   if(kind==='bossSlam'){noise(t,.65,.45,250);tone(sfxBus,105,t,.6,.45,'sine',25);for(let i=0;i<7;i++)noise(t+.07+i*.045,.09,.11,800+i*190)}
   if(kind==='bossFireImpact'){noise(t,.13,.48,900);tone(sfxBus,145,t,.21,.4,'sine',32);noise(t+.035,.32,.2,430);tone(sfxBus,58,t+.07,.3,.15,'sine',26)}
-  if(kind==='bossSpin'){for(let i=0;i<4;i++)noise(t+i*.1,.14,.23,650+i*200);tone(sfxBus,200,t,.45,.1,'triangle',65)}
+  if(kind==='bossSpin'){noise(t+.2,.24,.29,950);tone(sfxBus,520,t+.2,.23,.08,'triangle',110)}
   if(kind==='thrustCharge'){tone(sfxBus,180,t,.43,.09,'triangle',660);tone(sfxBus,1100,t+.26,.18,.05,'sine',1700)}
   if(kind==='thrust'){noise(t,.12,.27,2100);tone(sfxBus,1100,t,.13,.13,'triangle',280)}
   if(kind==='hit'){noise(t,.1,.22,900);tone(sfxBus,150,t,.12,.3,'triangle',45)}
