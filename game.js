@@ -11,7 +11,7 @@ function isolateSprite(rgba,width,height,seedX,seedY){
 const $=id=>document.getElementById(id);let scene;
 class Field extends Phaser.Scene{
  constructor(){super('field')}
- preload(){for(const [k,f]of [['forest','forest-map.png'],['battleground','battle-field-v6.png'],['north','hero-16-v7.png'],['south','foe-16-v7.png'],['evade','evade-perspective-v6.png'],['faces','faces-perspective-v6.png'],['walk','hero-walk-v10.png'],['ice','ice-storm-v3.png'],['cast','hero-cast-v1.png']])this.load.image(k,window.JRPG_ASSETS?.[k]||'assets/'+f);this.add.text(400,280,'성문의 숲을 불러오는 중…',{fontSize:18,color:'#d7b878'}).setOrigin(.5);}
+ preload(){for(const [k,f]of [['forest','forest-map.png'],['battleground','battle-field-v6.png'],['north','hero-16-v7.png'],['south','foe-16-v7.png'],['evade','evade-perspective-v6.png'],['faces','faces-perspective-v6.png'],['walk','hero-walk-v10.png'],['ice','ice-storm-v3.png'],['cast','hero-cast-v1.png'],['idle','hero-idle-v1.png']])this.load.image(k,window.JRPG_ASSETS?.[k]||'assets/'+f);this.add.text(400,280,'성문의 숲을 불러오는 중…',{fontSize:18,color:'#d7b878'}).setOrigin(.5);}
  unit(x,y,key,height){const atlas=key==='hero'?'north':'south',p=this.battlePoseData[atlas][0];return this.add.image(x,y+27,this.spriteKeys[atlas],'pose0').setOrigin(p.ax,p.ay).setScale(46/p.bodyHeight);}
 
  create(){scene=this;this.turn=1;this.ultimateReady=true;this.movesLeft=3;this.walking=false;this.facing='north';this.nextKeyAt=0;this.attackKind='jump';this.menuOpen=false;this.commandPending=false;this.commandIndex=0;this.dodgeChance=.5;this.busy=false;this.selected=false;this.p={x:3,y:6,hp:48,mp:50};this.foes=[{x:6,y:5,hp:30},{x:8,y:3,hp:30},{x:5,y:2,hp:30}];this.target=null;this.moved=false;this.art();this.draw();this.bindCommandUI();$('previewUltimate').onclick=()=>this.fight('ultimate',true);$('previewIce').onclick=()=>this.fight('ice',true);$('end').onclick=()=>this.end();$('reset').onclick=()=>this.scene.restart();this.setupKeyboard();this.sync();}
@@ -26,6 +26,15 @@ class Field extends Phaser.Scene{
    const px=i%4*cellW+2,py=Math.floor(i/4)*cellH+2;ctx.putImageData(clean,px,py);texture.add(name,0,px,py,w,h);
   }
   texture.refresh();texture.setFilter(Phaser.Textures.FilterMode.NEAREST);return packed;
+ }
+ prepareIdleAtlas(){
+  const texture=this.textures.get('idle'),directions=['north','south','west','east'],anchors=[[390,598,474],[858,598,474],[380,1156,482],[870,1156,482]];
+  this.idlePoseData={};for(let i=0;i<4;i++){const x=i%2*627,y=Math.floor(i/2)*627,[px,py,height]=anchors[i],name=directions[i];if(!texture.has(name))texture.add(name,0,x,y,627,627);this.idlePoseData[name]={ax:(px-x)/627,ay:(py-y)/627,bodyHeight:height}}
+ }
+ setIdlePose(){
+  const p=this.idlePoseData[this.facing];if(!this.mapHero||!p)return;
+  this.mapHero.setTexture('idle',this.facing).setOrigin(p.ax,p.ay).setScale(46/p.bodyHeight);this.mapHero.y=0;
+  if(this.mapShadow){this.mapShadow.scaleX=1;this.mapShadow.scaleY=1}
  }
  prepareCastAtlas(){
   const texture=this.textures.get('cast'),anchors=[[275,481,397,354,220],[785,483,386,897,206],[1289,483,389,1415,134],[280,963,389,438,626],[793,965,392,940,628],[1289,963,391,1360,718]];
@@ -42,7 +51,7 @@ class Field extends Phaser.Scene{
   }
  }
  art(){
-  this.prepareIceAtlas();this.prepareCastAtlas();
+  this.prepareIceAtlas();this.prepareCastAtlas();this.prepareIdleAtlas();
   const data=window.SPRITE_DATA;this.battlePoseData={};this.evasionPoseData={};this.spriteKeys={};
   const meta=([x,y,w,h,px,py,bodyHeight])=>({ax:(px-x)/w,ay:(py-y)/h,bodyHeight});
   for(const key of ['north','south']){
@@ -92,9 +101,9 @@ class Field extends Phaser.Scene{
   this.mapHero.setTexture(this.spriteKeys.walk,key).setOrigin(p.ax,p.ay).setScale(46/p.bodyHeight);
  }
  createMapHero(x,y){
-  const shadow=this.groundShadow(0,2,34),p=this.walkPoseData[this.facing+'1'];
-  this.mapHero=this.add.image(0,0,this.spriteKeys.walk,this.facing+'1').setOrigin(p.ax,p.ay).setScale(46/p.bodyHeight);
-  this.mapShadow=shadow;const marker=this.add.text(-9,-61,'▼',{fontSize:14,color:'#e8d19c'});
+  const shadow=this.groundShadow(0,2,34),p=this.idlePoseData[this.facing];
+  this.mapHero=this.add.image(0,0,'idle',this.facing).setOrigin(p.ax,p.ay).setScale(46/p.bodyHeight);
+  this.mapShadow=shadow;this.setIdlePose();const marker=this.add.text(-9,-61,'▼',{fontSize:14,color:'#e8d19c'});
   this.mapActor=this.add.container(x,y,[shadow,this.mapHero,marker]).setDepth(30);
  }
  async walkTo(tx,ty){
