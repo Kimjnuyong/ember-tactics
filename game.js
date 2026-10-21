@@ -14,7 +14,7 @@ class Field extends Phaser.Scene{
  preload(){for(const [k,f]of [['forest','forest-map.png'],['battleground','battle-field-v6.png'],['north','hero-16-v7.png'],['south','foe-16-v7.png'],['evade','evade-perspective-v6.png'],['faces','faces-perspective-v6.png'],['walk','hero-walk-v10.png'],['ice','ice-storm-v3.png'],['cast','hero-cast-v1.png'],['idle','hero-idle-v1.png'],['boss','ralo-v1.png'],['bossSpin','ralo-spin-v1.png']])this.load.image(k,window.JRPG_ASSETS?.[k]||'assets/'+f);this.add.text(400,280,'성문의 숲을 불러오는 중…',{fontSize:18,color:'#d7b878'}).setOrigin(.5);}
  unit(x,y,key,height){const atlas=key==='hero'?'north':'south',p=this.battlePoseData[atlas][0];return this.add.image(x,y+27,this.spriteKeys[atlas],'pose0').setOrigin(p.ax,p.ay).setScale(46/p.bodyHeight);}
 
- create(){scene=this;this.turn=1;this.ultimateReady=true;this.movesLeft=3;this.walking=false;this.facing='north';this.nextKeyAt=0;this.attackKind='jump';this.menuOpen=false;this.commandPending=false;this.commandIndex=0;this.dodgeChance=.5;this.busy=false;this.selected=false;this.p={x:3,y:6,hp:48,mp:50};this.foes=[{x:6,y:5,hp:30},{x:8,y:3,hp:30},{x:5,y:2,hp:30},{x:5,y:1,hp:90,maxHP:90,name:'랄로',kind:'boss',counter:12,skillIndex:0}];this.target=null;this.moved=false;this.art();this.draw();this.bindCommandUI();$('previewUltimate').onclick=()=>this.fight('ultimate',true);$('previewIce').onclick=()=>this.fight('ice',true);$('end').onclick=()=>this.end();$('reset').onclick=()=>this.scene.restart();this.setupKeyboard();this.sync();}
+ create(){scene=this;this.stageCleared=false;$('clearScreen').hidden=true;this.turn=1;this.ultimateReady=true;this.movesLeft=3;this.walking=false;this.facing='north';this.nextKeyAt=0;this.attackKind='jump';this.menuOpen=false;this.commandPending=false;this.commandIndex=0;this.dodgeChance=.5;this.busy=false;this.selected=false;this.p={x:3,y:6,hp:48,mp:50};this.foes=[{x:6,y:5,hp:30},{x:8,y:3,hp:30},{x:5,y:2,hp:30},{x:5,y:1,hp:90,maxHP:90,name:'랄로',kind:'boss',counter:12,skillIndex:0}];this.target=null;this.moved=false;this.art();this.draw();this.bindCommandUI();$('previewUltimate').onclick=()=>this.fight('ultimate',true);$('previewIce').onclick=()=>this.fight('ice',true);$('end').onclick=()=>this.end();$('reset').onclick=()=>this.scene.restart();this.setupKeyboard();this.sync();}
  packSpriteAtlas(key,entries){
   const packed=key+'-packed',cellW=Math.max(...entries.map(e=>e.rect[2]))+4,cellH=Math.max(...entries.map(e=>e.rect[3]))+4;
   if(this.textures.exists(packed))return packed;
@@ -87,13 +87,13 @@ class Field extends Phaser.Scene{
   const keyboard=this.input?.keyboard;if(!keyboard)return;
   this.keys=keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT',false);
   const directionByCode={ArrowUp:'north',KeyW:'north',ArrowDown:'south',KeyS:'south',ArrowLeft:'west',KeyA:'west',ArrowRight:'east',KeyD:'east'};
-  const handler=event=>{if(!this.keyboardAllowed()||this.busy)return;if(this.handleCommandKey(event))return;const dir=directionByCode[event.code];if(dir){event.preventDefault();this.keyIntent=dir;this.nextKeyAt=0}};
+  const handler=event=>{if(this.stageCleared||!this.keyboardAllowed()||this.busy)return;if(this.handleCommandKey(event))return;const dir=directionByCode[event.code];if(dir){event.preventDefault();this.keyIntent=dir;this.nextKeyAt=0}};
   // Prevent arrow-key scrolling synchronously; Phaser still tracks the held keys.
   window.addEventListener('keydown',handler,true);this.events?.once('shutdown',()=>window.removeEventListener('keydown',handler,true));
   if(this.game?.canvas){this.game.canvas.tabIndex=0;this.game.canvas.setAttribute('aria-label','방향키 또는 WASD로 캐릭터 이동');}
  }
  update(time){
-  if(!this.keys||this.busy||this.walking||this.menuOpen||this.commandPending||this.p.hp<=0||this.movesLeft<=0||!this.keyboardAllowed()||time<this.nextKeyAt)return;
+  if(this.stageCleared||!this.keys||this.busy||this.walking||this.menuOpen||this.commandPending||this.p.hp<=0||this.movesLeft<=0||!this.keyboardAllowed()||time<this.nextKeyAt)return;
   const pressed={north:this.keys.UP.isDown||this.keys.W.isDown,south:this.keys.DOWN.isDown||this.keys.S.isDown,west:this.keys.LEFT.isDown||this.keys.A.isDown,east:this.keys.RIGHT.isDown||this.keys.D.isDown};
   const dir=pressed[this.keyIntent]?this.keyIntent:Object.keys(pressed).find(k=>pressed[k]);if(!dir)return;
   const[dx,dy]={north:[0,-1],south:[0,1],west:[-1,0],east:[1,0]}[dir];this.nextKeyAt=time+170;
@@ -118,7 +118,7 @@ class Field extends Phaser.Scene{
   this.mapActor=this.add.container(x,y,[shadow,this.mapHero,marker]).setDepth(30);
  }
  async walkTo(tx,ty){
-  if(this.busy||this.walking||this.menuOpen||this.p.hp<=0||this.movesLeft<=0)return false;
+  if(this.stageCleared||this.busy||this.walking||this.menuOpen||this.p.hp<=0||this.movesLeft<=0)return false;
   const path=this.walkPathTo(tx,ty);if(!path||!path.length)return false;
   this.walking=true;this.target=null;this.sync();$('hint').textContent='이동 중…';
   for(const[x,y]of path){
@@ -132,7 +132,7 @@ class Field extends Phaser.Scene{
   this.walking=false;this.draw();this.sync();$('hint').textContent=this.movesLeft?'방향키·WASD 또는 칸 클릭 · 남은 이동 '+this.movesLeft+'칸':'이동력을 모두 사용했습니다. 공격하거나 턴을 종료하세요.';return true;
  }
  async click(x,y){
-  if(this.busy||this.walking||this.commandPending||this.menuOpen||this.p.hp<=0)return false;
+  if(this.stageCleared||this.busy||this.walking||this.commandPending||this.menuOpen||this.p.hp<=0)return false;
   const foe=this.foes.find(e=>e.hp>0&&e.x===x&&e.y===y);if(foe)return this.openCommands(foe);
   if(this.menuOpen)return false;
   this.hideCommands();this.target=null;this.draw();this.sync();return this.walkTo(x,y);
@@ -140,13 +140,19 @@ class Field extends Phaser.Scene{
  dist(e){return Math.abs(e.x-this.p.x)+Math.abs(e.y-this.p.y)}
  sync(){
   const alive=this.foes.filter(e=>e.hp>0),locked=this.busy||this.walking||this.commandPending;
-  $('mp').textContent=this.p.mp+' / 50';$('mpbar').style.width=this.p.mp/50*100+'%';$('previewIce').disabled=locked;
+  $('mp').textContent=this.p.mp+' / 50';$('mpbar').style.width=this.p.mp/50*100+'%';$('previewIce').disabled=locked||this.stageCleared;
   $('hp').textContent=this.p.hp+' / 48';$('hpbar').style.width=this.p.hp/48*100+'%';$('turn').textContent='TURN '+String(this.turn).padStart(2,'0');
-  $('end').disabled=locked||!alive.length||this.p.hp<=0;$('reset').disabled=locked;$('previewUltimate').disabled=locked;$('movementLeft').textContent=this.movesLeft+' / 3';
+  $('end').disabled=locked||!alive.length||this.p.hp<=0;$('reset').disabled=locked;$('previewUltimate').disabled=locked||this.stageCleared;$('movementLeft').textContent=this.movesLeft+' / 3';
   $('ultimateStatus').textContent=this.ultimateReady?'필살기 준비 완료 · 출격당 1회':'필살기 사용 완료 · 처음부터 시작하면 충전';
   $('phase').textContent=this.busy?'BATTLE · 전투':this.walking?'MOVING · 이동':!alive.length?'VICTORY · 승리':this.p.hp<=0?'DEFEAT · 패배':this.menuOpen?'COMMAND · 공격 선택':'EXPLORATION · 탐색';
   if(!alive.length)$('hint').textContent='성문을 되찾았습니다! 처음부터 버튼으로 다시 플레이할 수 있어요.';if(this.p.hp<=0)$('hint').textContent='검사가 쓰러졌습니다. 처음부터 다시 도전하세요.';
-  this.refreshCommands();
+  this.refreshCommands();if(!alive.length&&this.p.hp>0&&!locked&&!this.stageCleared)this.showClearScreen();
+ }
+ showClearScreen(){
+  if(this.stageCleared||this.foes.some(e=>e.hp>0)||this.p.hp<=0)return false;
+  this.stageCleared=true;this.hideCommands();this.keyIntent=null;if(this.input)this.input.enabled=false;
+  $('clearKills').textContent=this.foes.length+' / '+this.foes.length;$('clearTurns').textContent=String(Math.max(1,this.turn-1));$('clearHP').textContent=this.p.hp+' / 48';$('clearMP').textContent=this.p.mp+' / 50';$('clearScreen').hidden=false;
+  $('previewUltimate').disabled=true;$('previewIce').disabled=true;window.GameAudio?.sfx('victory');$('clearReplay').focus?.({preventScroll:true});return true;
  }
  canAttackTarget(foe=this.target){return !this.busy&&!this.walking&&this.p.hp>0&&!!foe&&foe.hp>0&&this.dist(foe)<=1;}
  attackPlan(foe=this.target){
@@ -158,11 +164,13 @@ class Field extends Phaser.Scene{
  bindCommandUI(){
   const ids=['attack','thrust','ultimate','ice'];ids.forEach((id,i)=>{$(id).onclick=event=>{event?.preventDefault();event?.stopPropagation();if($(id).disabled)return Promise.resolve(false);return this.lastCommandPromise=this.issueAttack(['jump','thrust','ultimate','ice'][i])};$(id).onpointerenter=()=>this.selectCommand(i)});
   for(const id of ['commandMenu','commandBackdrop'])for(const type of ['pointerdown','pointerup','pointermove','click','dblclick','contextmenu'])$(id)['on'+type]=event=>event.stopPropagation();
+  $('clearReplay').onclick=()=>this.scene.restart();$('clearViewMap').onclick=()=>{$('clearScreen').hidden=true;$('reset').focus?.()};
+  $('clearScreen').onkeydown=event=>{if(event.key==='Tab'){event.preventDefault();(document.activeElement===$('clearReplay')?$('clearViewMap'):$('clearReplay')).focus?.()}else if(event.key==='Escape'){$('clearViewMap').onclick()}};
   $('cancelCommand').onclick=()=>this.closeCommands();
   this.scale?.on('resize',this.positionCommands,this);this.events?.once('shutdown',()=>this.scale?.off('resize',this.positionCommands,this));
  }
  openCommands(foe=this.target){
-  if(this.busy||this.walking||this.commandPending||!foe||foe.hp<=0||this.p.hp<=0)return false;
+  if(this.stageCleared||this.busy||this.walking||this.commandPending||!foe||foe.hp<=0||this.p.hp<=0)return false;
   this.target=foe;this.menuOpen=true;this.commandIndex=['jump','thrust','ultimate','ice'].indexOf(this.attackKind);if(this.commandIndex<0||(this.commandIndex===2&&!this.ultimateReady)||(this.commandIndex===3&&this.p.mp<50))this.commandIndex=0;
   this.keyIntent=null;this.draw();this.sync();$('hint').textContent='공격 카드를 클릭하세요 · 이동 잠금 · × 또는 Esc로 취소';
   $('commandMenu').focus?.({preventScroll:true});if(window.innerWidth<=650)$('commandMenu').scrollIntoView?.({block:'nearest',behavior:'smooth'});return true;
@@ -179,7 +187,7 @@ class Field extends Phaser.Scene{
   $('attack').disabled=!available;$('thrust').disabled=!available;$('ultimate').disabled=!available||!this.ultimateReady;$('ice').disabled=locked||this.p.mp<50||!this.target||this.target.hp<=0||this.p.hp<=0;
   $('menuIceState').textContent=this.p.mp>=50?'적 전체 · MP 50 · 명중 100%':'마나 부족 · MP 50 필요';
   const visible=this.menuOpen&&!locked&&!!this.target&&this.target.hp>0;
-  $('commandMenu').hidden=!visible;$('commandBackdrop').hidden=!visible;$('battleArea').classList.toggle('command-active',visible);if(this.input)this.input.enabled=!visible;
+  $('commandMenu').hidden=!visible;$('commandBackdrop').hidden=!visible;$('battleArea').classList.toggle('command-active',visible);if(this.input)this.input.enabled=!visible&&!this.stageCleared;
   if(!this.menuOpen||!this.target)return;
   $('targetName').textContent=this.target.kind==='boss'?'중간보스 · 랄로':this.enemyName(this.target);$('targetHP').textContent='HP '+this.target.hp+' / '+this.enemyMaxHP(this.target);
   $('approachInfo').textContent=this.commandIndex===3?'전장 전체를 휩쓰는 광역 마법 · 이동 없이 시전':plan?(plan.cost?'이동 '+plan.cost+'칸 후 공격 · 한 번에 실행됩니다':'공격 사거리 안 · 바로 사용할 수 있습니다'):'이번 턴의 이동력으로 접근할 수 없습니다';
@@ -211,7 +219,7 @@ class Field extends Phaser.Scene{
   try{
    if(plan.cost&&!(await this.walkTo(plan.x,plan.y)))return false;
    this.target=foe;if(kind!=='ice'&&!this.canAttackTarget(foe))return false;await this.fight(kind);return true;
-  }finally{this.commandPending=false;this.sync();this.game?.canvas?.focus?.({preventScroll:true});}
+  }finally{this.commandPending=false;this.sync();if(!this.stageCleared)this.game?.canvas?.focus?.({preventScroll:true});}
  }
  setCombatPose(f,i){if(f.key==='boss')return this.setBossPose(f,[0,1,1,2,2,3,3,4,0,1,1,2,2,3,4,0][i]??0);const p=this.battlePoseData[f.key][i];f.sprite.setTexture(this.spriteKeys[f.key],'pose'+i).setOrigin(p.ax,p.ay).setScale(92/p.bodyHeight);return f;}
  groundShadow(x,y,width=52){
@@ -426,6 +434,7 @@ a.root.setDepth(contact);a.shadow.setDepth(contact-1);
  }
 
  async fight(overrideKind=null,preview=false){
+  if(this.stageCleared)return;
   if(this.busy||this.walking||(!preview&&((overrideKind||this.attackKind)==='ice'?(!this.target||this.target.hp<=0||this.p.hp<=0||this.p.mp<50):!this.canAttackTarget()))||(!preview&&(overrideKind||this.attackKind)==='ultimate'&&!this.ultimateReady))return;let foe=preview?{hp:overrideKind==='ice'?30:38,maxHP:overrideKind==='ice'?30:38}:this.target,kind=overrideKind||this.attackKind||'jump',events=[];if(kind==='ultimate'&&!preview)this.ultimateReady=false;if(kind==='ice'&&!preview)this.p.mp-=50;this.hideCommands();this.busy=true;this.sync();
   const speed=$('fast').checked?.55:1,wait=ms=>new Promise(r=>this.time.delayedCall(ms*speed,r));
   const move=(target,props,ms)=>new Promise(resolve=>this.tweens.add({targets:target,...props,duration:ms*speed,ease:'Sine.easeInOut',onComplete:resolve}));
