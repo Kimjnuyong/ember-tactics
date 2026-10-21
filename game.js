@@ -14,7 +14,7 @@ class Field extends Phaser.Scene{
  preload(){for(const [k,f]of [['forest','forest-map.png'],['battleground','battle-field-v6.png'],['north','hero-16-v7.png'],['south','foe-16-v7.png'],['evade','evade-perspective-v6.png'],['faces','faces-perspective-v6.png'],['walk','hero-walk-v10.png'],['ice','ice-storm-v3.png'],['cast','hero-cast-v1.png'],['idle','hero-idle-v1.png'],['boss','ralo-v1.png'],['bossSpin','ralo-spin-v1.png']])this.load.image(k,window.JRPG_ASSETS?.[k]||'assets/'+f);this.add.text(400,280,'성문의 숲을 불러오는 중…',{fontSize:18,color:'#d7b878'}).setOrigin(.5);}
  unit(x,y,key,height){const atlas=key==='hero'?'north':'south',p=this.battlePoseData[atlas][0];return this.add.image(x,y+27,this.spriteKeys[atlas],'pose0').setOrigin(p.ax,p.ay).setScale(46/p.bodyHeight);}
 
- create(){scene=this;this.ensureClearUI();this.stageCleared=false;$('clearScreen').hidden=true;this.turn=1;this.ultimateReady=true;this.movesLeft=3;this.walking=false;this.facing='north';this.nextKeyAt=0;this.attackKind='jump';this.menuOpen=false;this.commandPending=false;this.commandIndex=0;this.dodgeChance=.5;this.busy=false;this.selected=false;this.p={x:3,y:6,hp:48,mp:50};this.foes=[{x:6,y:5,hp:30},{x:8,y:3,hp:30},{x:5,y:2,hp:30},{x:5,y:1,hp:90,maxHP:90,name:'랄로',kind:'boss',counter:12,skillIndex:0}];this.target=null;this.moved=false;this.art();this.draw();this.bindCommandUI();$('previewUltimate').onclick=()=>this.fight('ultimate',true);$('previewIce').onclick=()=>this.fight('ice',true);$('end').onclick=()=>this.end();$('reset').onclick=()=>this.scene.restart();this.setupKeyboard();this.sync();}
+ create(){scene=this;this.ensureClearUI();this.stageCleared=false;this.gameOver=false;$('clearScreen').hidden=true;this.turn=1;this.ultimateReady=true;this.movesLeft=3;this.walking=false;this.facing='north';this.nextKeyAt=0;this.attackKind='jump';this.menuOpen=false;this.commandPending=false;this.commandIndex=0;this.dodgeChance=.5;this.busy=false;this.selected=false;this.p={x:3,y:6,hp:48,mp:50};this.foes=[{x:6,y:5,hp:30},{x:8,y:3,hp:30},{x:5,y:2,hp:30},{x:5,y:1,hp:90,maxHP:90,name:'랄로',kind:'boss',skillDamage:[15,20],skillIndex:0}];this.target=null;this.moved=false;this.art();this.draw();this.bindCommandUI();$('previewUltimate').onclick=()=>this.fight('ultimate',true);$('previewIce').onclick=()=>this.fight('ice',true);$('end').onclick=()=>this.end();$('reset').onclick=()=>this.scene.restart();this.setupKeyboard();this.sync();}
  packSpriteAtlas(key,entries){
   const packed=key+'-packed',cellW=Math.max(...entries.map(e=>e.rect[2]))+4,cellH=Math.max(...entries.map(e=>e.rect[3]))+4;
   if(this.textures.exists(packed))return packed;
@@ -92,7 +92,7 @@ class Field extends Phaser.Scene{
   const keyboard=this.input?.keyboard;if(!keyboard)return;
   this.keys=keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT',false);
   const directionByCode={ArrowUp:'north',KeyW:'north',ArrowDown:'south',KeyS:'south',ArrowLeft:'west',KeyA:'west',ArrowRight:'east',KeyD:'east'};
-  const handler=event=>{if(this.stageCleared||!this.keyboardAllowed()||this.busy)return;if(this.handleCommandKey(event))return;const dir=directionByCode[event.code];if(dir){event.preventDefault();this.keyIntent=dir;this.nextKeyAt=0}};
+  const handler=event=>{if(this.gameOver){if(!this.busy&&event.code==='Enter'){event.preventDefault();this.scene.restart()}return}if(this.stageCleared||!this.keyboardAllowed()||this.busy)return;if(this.handleCommandKey(event))return;const dir=directionByCode[event.code];if(dir){event.preventDefault();this.keyIntent=dir;this.nextKeyAt=0}};
   // Prevent arrow-key scrolling synchronously; Phaser still tracks the held keys.
   window.addEventListener('keydown',handler,true);this.events?.once('shutdown',()=>window.removeEventListener('keydown',handler,true));
   if(this.game?.canvas){this.game.canvas.tabIndex=0;this.game.canvas.setAttribute('aria-label','방향키 또는 WASD로 캐릭터 이동');}
@@ -145,13 +145,43 @@ class Field extends Phaser.Scene{
  dist(e){return Math.abs(e.x-this.p.x)+Math.abs(e.y-this.p.y)}
  sync(){
   const alive=this.foes.filter(e=>e.hp>0),locked=this.busy||this.walking||this.commandPending;
-  $('mp').textContent=this.p.mp+' / 50';$('mpbar').style.width=this.p.mp/50*100+'%';$('previewIce').disabled=locked||this.stageCleared;
+  $('mp').textContent=this.p.mp+' / 50';$('mpbar').style.width=this.p.mp/50*100+'%';$('previewIce').disabled=locked||this.stageCleared||this.gameOver;
   $('hp').textContent=this.p.hp+' / 48';$('hpbar').style.width=this.p.hp/48*100+'%';$('turn').textContent='TURN '+String(this.turn).padStart(2,'0');
-  $('end').disabled=locked||!alive.length||this.p.hp<=0;$('reset').disabled=locked;$('previewUltimate').disabled=locked||this.stageCleared;$('movementLeft').textContent=this.movesLeft+' / 3';
+  $('end').disabled=locked||!alive.length||this.p.hp<=0;$('reset').disabled=locked;$('previewUltimate').disabled=locked||this.stageCleared||this.gameOver;$('movementLeft').textContent=this.movesLeft+' / 3';
   $('ultimateStatus').textContent=this.ultimateReady?'필살기 준비 완료 · 출격당 1회':'필살기 사용 완료 · 처음부터 시작하면 충전';
-  $('phase').textContent=this.busy?'BATTLE · 전투':this.walking?'MOVING · 이동':!alive.length?'VICTORY · 승리':this.p.hp<=0?'DEFEAT · 패배':this.menuOpen?'COMMAND · 공격 선택':'EXPLORATION · 탐색';
+  $('phase').textContent=this.gameOver?'GAME OVER · 패배':this.busy?'BATTLE · 전투':this.walking?'MOVING · 이동':!alive.length?'VICTORY · 승리':this.p.hp<=0?'DEFEAT · 패배':this.menuOpen?'COMMAND · 공격 선택':'EXPLORATION · 탐색';
   if(!alive.length)$('hint').textContent='성문을 되찾았습니다! 처음부터 버튼으로 다시 플레이할 수 있어요.';if(this.p.hp<=0)$('hint').textContent='검사가 쓰러졌습니다. 처음부터 다시 도전하세요.';
-  this.refreshCommands();if(!alive.length&&this.p.hp>0&&!locked&&!this.stageCleared)this.showClearScreen();
+  this.refreshCommands();if(this.p.hp<=0&&!locked&&!this.gameOver)this.lastDeathPromise=this.defeat();if(!alive.length&&this.p.hp>0&&!locked&&!this.stageCleared)this.showClearScreen();
+ }
+ async defeat(fighter=null,speed=1){
+  if(this.gameOver)return false;
+  this.gameOver=true;this.busy=true;this.keyIntent=null;this.hideCommands();this.sync();
+  const wait=ms=>new Promise(resolve=>this.time.delayedCall(ms*speed,resolve)),map=!fighter;
+  const sprite=map?this.mapHero:fighter.sprite,root=map?this.mapActor:fighter.root,size=map?46:92;
+  window.GameAudio?.sfx('death');
+  // Turn through directional artwork, preserving the feet on the ground.
+  for(let frame=0;frame<12;frame++){
+   const direction=['south','west','north','east'][frame%4],key=direction+'0',pose=this.walkPoseData[key];
+   sprite.setTexture(this.spriteKeys.walk,key).setOrigin(pose.ax,pose.ay).setScale(size/pose.bodyHeight);await wait(65+frame*3);
+  }
+  await new Promise(resolve=>this.tweens.add({targets:sprite,angle:82,scaleY:sprite.scaleY*.78,duration:270*speed,ease:'Cubic.easeIn',onComplete:resolve}));
+  this.cameras.main.shake(90*speed,.003);
+  const cx=root.x+size*.68,cy=root.y-size*.25,stars=[];
+  for(let i=0;i<3;i++){
+   const star=this.add.graphics().setDepth(650);
+   const rows=['..a..','..b..','ababa','.bbb.','..b..'];
+   rows.forEach((row,y)=>[...row].forEach((c,x)=>{if(c!=='.')star.fillStyle(c==='a'?0xd9a94e:0xffe8a0).fillRect((x-2)*2,(y-2)*2,2,2)}));stars.push(star);
+  }
+  const orbit={phase:0};
+  const orbitStars=phase=>stars.forEach((star,i)=>{const a=phase+i*Math.PI*2/3;star.x=Math.round(cx+Math.cos(a)*size*.27);star.y=Math.round(cy+Math.sin(a)*size*.09);star.setDepth(Math.sin(a)<0?640:650)});
+  orbitStars(0);this.tweens.add({targets:orbit,phase:Math.PI*2,duration:1450,repeat:-1,onUpdate:()=>orbitStars(orbit.phase)});
+  await wait(480);
+  this.add.rectangle(400,90,800,180,0x161922,.7).setDepth(680);
+  this.add.text(400,66,'GAME OVER',{fontSize:42,fontFamily:'Georgia, serif',color:'#e5c3ae',letterSpacing:5,stroke:'#281f25',strokeThickness:3}).setOrigin(.5).setDepth(681);
+  this.add.text(400,115,'루나가 쓰러졌습니다 · 다시 도전할 수 있어요',{fontSize:14,color:'#d2c2b7'}).setOrigin(.5).setDepth(681);
+  this.add.rectangle(400,500,214,40,0x34312d,.97).setStrokeStyle(1,0xc5ac80).setDepth(681).setInteractive({useHandCursor:true}).on('pointerdown',()=>this.scene.restart());
+  this.add.text(400,500,'다시 도전  ↵',{fontSize:17,color:'#f3dfb6'}).setOrigin(.5).setDepth(682);
+  this.busy=false;this.sync();$('hint').textContent='GAME OVER · 다시 도전 또는 Enter로 재시작';$('log').textContent='루나가 쓰러졌다…';this.game?.canvas?.focus?.({preventScroll:true});return true;
  }
  showClearScreen(){
   if(this.stageCleared||this.foes.some(e=>e.hp>0)||this.p.hp<=0)return false;
@@ -224,7 +254,7 @@ class Field extends Phaser.Scene{
   try{
    if(plan.cost&&!(await this.walkTo(plan.x,plan.y)))return false;
    this.target=foe;if(kind!=='ice'&&!this.canAttackTarget(foe))return false;await this.fight(kind);return true;
-  }finally{this.commandPending=false;this.sync();if(!this.stageCleared)this.game?.canvas?.focus?.({preventScroll:true});}
+  }finally{this.commandPending=false;this.sync();if(!this.stageCleared&&!this.gameOver)this.game?.canvas?.focus?.({preventScroll:true});}
  }
  setCombatPose(f,i){if(f.key==='boss')return this.setBossPose(f,[0,1,1,2,2,3,3,4,0,1,1,2,2,3,4,0][i]??0);const p=this.battlePoseData[f.key][i];f.sprite.setTexture(this.spriteKeys[f.key],'pose'+i).setOrigin(p.ax,p.ay).setScale(92/p.bodyHeight);return f;}
  groundShadow(x,y,width=52){
@@ -547,7 +577,7 @@ a.root.setDepth(contact);a.shadow.setDepth(contact-1);
  }
 
  async fight(overrideKind=null,preview=false){
-  if(this.stageCleared)return;
+  if(this.stageCleared||this.gameOver)return;
   if(this.busy||this.walking||(!preview&&((overrideKind||this.attackKind)==='ice'?(!this.target||this.target.hp<=0||this.p.hp<=0||this.p.mp<50):!this.canAttackTarget()))||(!preview&&(overrideKind||this.attackKind)==='ultimate'&&!this.ultimateReady))return;let foe=preview?{hp:overrideKind==='ice'?30:38,maxHP:overrideKind==='ice'?30:38}:this.target,kind=overrideKind||this.attackKind||'jump',events=[];if(kind==='ultimate'&&!preview)this.ultimateReady=false;if(kind==='ice'&&!preview)this.p.mp-=50;this.hideCommands();this.busy=true;this.sync();
   const speed=$('fast').checked?.55:1,wait=ms=>new Promise(r=>this.time.delayedCall(ms*speed,r));
   const move=(target,props,ms)=>new Promise(resolve=>this.tweens.add({targets:target,...props,duration:ms*speed,ease:'Sine.easeInOut',onComplete:resolve}));
@@ -568,15 +598,16 @@ a.root.setDepth(contact);a.shadow.setDepth(contact-1);
    await this.iceStorm(hero,fighters,speed,amount=>{for(const v of victims)v.hp=Math.max(0,v.hp-amount);enemyHP.set(preview?victims[0].hp:foe.hp);for(const f of fighters)damage(f,amount)});
    events.push('적 전체에 빙결폭풍！ 각 28 피해.'+(preview?'':' MP 50 소모.'));
   }else if(kind==='ultimate')await this.ultimateAttack(hero,enemy,speed,(dodged,amount,index)=>{if(dodged){events.push('적이 필살기를 회피했다.')}else{foe.hp=Math.max(0,foe.hp-amount);enemyHP.set(foe.hp);if(index===8)damage(enemy,amount);if(index===8)events.push('9연격！ 총 38 피해.')}},preview);
-  else await this.videoAttack(hero,enemy,kind,speed,dodged=>{if(dodged){events.push('적이 회피했다.')}else{foe.hp=Math.max(0,foe.hp-18);enemyHP.set(foe.hp);damage(enemy,18);events.push('적에게 18 피해.')}});
+  else await this.videoAttack(hero,enemy,kind,speed,dodged=>{if(dodged){events.push('적이 회피했다.')}else{const amount=kind==='jump'?23:18;foe.hp=Math.max(0,foe.hp-amount);enemyHP.set(foe.hp);damage(enemy,amount);events.push('적에게 '+amount+' 피해.')}});
   if(foe.hp>0&&!preview&&kind!=='ice'){
-   const counterDamage=foe.counter||7,skill=foe.kind==='boss'?(foe.skillIndex||0)%2:null;
+   const skill=foe.kind==='boss'?(foe.skillIndex||0)%2:null,counterDamage=skill===null?7:[15,20][skill];
    if(foe.kind==='boss'){foe.skillIndex=(foe.skillIndex||0)+1;events.push(skill===0?'이터널리턴지금바로시작!':'사펑이나 빨리 보라능 헤헤');title.setText(skill===0?'이터널리턴지금바로시작!':'사펑이나 빨리 보라능 헤헤');await this.bossSkillBanner(skill,speed)}else{title.setText('반격');await wait(170)}
    const onCounter=dodged=>{if(dodged)events.push('루나가 '+this.enemyName(foe)+'의 공격을 회피했다.');else{this.p.hp=Math.max(0,this.p.hp-counterDamage);heroHP.set(this.p.hp);damage(hero,counterDamage);events.push(this.enemyName(foe)+'의 반격으로 '+counterDamage+' 피해.')}};
    if(foe.kind==='boss')await this.bossAttack(enemy,hero,skill,speed,onCounter);else await this.videoAttack(enemy,hero,'thrust',speed,onCounter);
   }
   else if(foe.hp<=0){await move(enemy.root,{alpha:0},280);await move(enemy.shadow,{alpha:0},100)}
   $('log').textContent=(preview?'[미리보기] ':kind==='bossTurn'?'랄로！ ':kind==='ice'?'빙결폭풍！ ':kind==='ultimate'?'월광난무！ ':kind==='jump'?'낙성참！ ':'섬광돌！ ')+events.join(' ')+(foe.hp<=0?' 적을 쓰러뜨렸다.':'');await wait(350);
+  if(!preview&&this.p.hp<=0){await this.defeat(hero,speed);return;}
   let fade=this.add.rectangle(400,280,800,560,0x0d1811,0).setDepth(200);await move(fade,{fillAlpha:1},170);
   this.busy=false;if(!preview){this.target=null;this.moved=false;this.movesLeft=3;this.turn++}this.draw();this.sync();$('hint').textContent=preview?'미리보기 완료. 이동과 체력, 필살기 사용 횟수는 그대로입니다.':this.foes.some(e=>e.hp>0)?'새로운 턴입니다. 이동하거나 공격하세요.':'성문을 되찾았습니다! 처음부터 다시 플레이할 수 있어요.';
  }

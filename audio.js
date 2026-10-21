@@ -23,6 +23,7 @@
   if(kind==='confirm'){[76,81,88].forEach((n,i)=>tone(sfxBus,note(n),t+i*.045,.15,.13,'triangle'))}
   if(kind==='turn'){[76,72,69,64].forEach((n,i)=>tone(sfxBus,note(n),t+i*.075,.24,.15,'triangle'));tone(sfxBus,110,t,.3,.15,'sine')}
   if(kind==='jump'){noise(t,.18,.24,700);tone(sfxBus,240,t,.2,.15,'sine',550)}
+  if(kind==='death'){[76,72,69,64,57].forEach((n,i)=>tone(sfxBus,note(n),t+i*.13,.32,.13,'triangle'));tone(sfxBus,110,t+.9,.35,.21,'sine',38);noise(t+.95,.15,.12,450)}
   if(kind==='victory'){[69,73,76,81,76,81,85,88].forEach((n,i)=>tone(sfxBus,note(n),t+i*.12,.4,.15,'triangle'));[45,52,57].forEach(n=>tone(sfxBus,note(n),t+.48,1.1,.12,'sine'))}
   if(kind==='bossCharge'){[40,47,52].forEach((n,i)=>tone(sfxBus,note(n),t+i*.09,.5,.15,'triangle'));noise(t,.3,.14,450)}
   if(kind==='bossSpinCharge'){tone(sfxBus,180,t,.78,.11,'triangle',880);tone(sfxBus,540,t,.78,.045,'sine',1760);tone(sfxBus,1100,t+.48,.28,.04,'sine',2200);noise(t,.72,.045,1100)}
