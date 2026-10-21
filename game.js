@@ -418,32 +418,68 @@ a.root.setDepth(contact);a.shadow.setDepth(contact-1);
   await Promise.all([move(portrait,{x:900,alpha:0},180),move(panel,{alpha:0},180),move(edge,{alpha:0},180),move(label,{alpha:0},180),move(title,{alpha:0},180)]);
   for(const o of [panel,edge,portrait,label,title])o.destroy();
  }
+ // Effects use a two-pixel grid and clustered palette ramps, like the character art.
+ pixelFlame(g,cx,cy,size,phase=0){
+  const palette=[0x9b382d,0xd55224,0xf5872b,0xffbc55,0xffe7a0];
+  for(let py=-size;py<=size*.45;py+=2)for(let px=-size*.6;px<=size*.6;px+=2){
+   const nx=px/size,ny=py/size,w=.46*(1-Math.max(0,-ny)*.7),flicker=Math.sin(py*.6+phase*1.7)*.09;
+   if(Math.abs(nx+flicker)<w&&ny>-.8-Math.sin(px*.5+phase)*.2){const heat=1-Math.abs(nx)/w-Math.max(0,-ny)*.55;g.fillStyle(palette[Math.max(0,Math.min(4,Math.floor(heat*5)))]).fillRect(Math.round((cx+px)/2)*2,Math.round((cy+py)/2)*2,2,2)}
+  }
+ }
  hammerGroundImpact(x,y,speed){
-  const cracks=this.add.graphics().setDepth(76);
-  cracks.fillStyle(0x251c16,.42).fillEllipse(x,y,100,29);cracks.lineStyle(3,0xbaa06b,.6).strokeEllipse(x,y,106,31);
-  for(let i=0;i<11;i++){
-   const a=i*Math.PI*2/11+.14,len=65+i%4*18,points=[{x,y}];
-   for(let j=1;j<=4;j++){const d=len*j/4,side=(j%2?1:-1)*(3+i%3*2);points.push({x:x+Math.cos(a)*d+Math.sin(a)*side,y:y+Math.sin(a)*d*.33+Math.cos(a)*side*.5})}
-   cracks.lineStyle(5,0x292019,.82).strokePoints(points,false);cracks.lineStyle(1,0xe1c18c,.72).strokePoints(points.map(p=>({x:p.x+1,y:p.y+2})),false);
-   const fork=points[2],b=a+(i%2?-.65:.65);cracks.lineStyle(2,0x30231a,.8).lineBetween(fork.x,fork.y,fork.x+Math.cos(b)*30,fork.y+Math.sin(b)*12);
+  const ground=this.add.graphics().setDepth(76),snap=n=>Math.round(n/2)*2;
+  // Broken turf shelves: shallow highlights and dark recesses, no thick outlines.
+  for(let row=-9;row<=9;row++)for(let col=-28;col<=28;col++){
+   const edge=col*col/784+row*row/81,seed=(col*17+row*31+991)%13;
+   if(edge<1&&seed>1){ground.fillStyle(edge>.75?0x7f8053:seed>7?0x635a3d:0x77704b,.84).fillRect(snap(x+col*2),snap(y+row*2),2,2)}
   }
-  this.tweens.add({targets:cracks,alpha:0,delay:650*speed,duration:850*speed,onComplete:()=>cracks.destroy()});
-  for(let i=0;i<3;i++){const ring=this.add.ellipse(x,y,32,9,0xe9cf99,0).setStrokeStyle(i===0?3:1,0xe9cf99,.38).setDepth(77);this.tweens.add({targets:ring,scaleX:7+i*2,scaleY:4+i,alpha:0,delay:i*45*speed,duration:(330+i*90)*speed,onComplete:()=>ring.destroy()})}
-  for(let i=0;i<36;i++){
-   const a=i*2.399,range=42+i%7*16,lift=26+i%6*12,size=3+i%5,landX=x+Math.cos(a)*range,landY=y+Math.sin(a)*range*.32;
-   const shadow=this.add.ellipse(x,y,size*2,size*.7,0x1a1711,.3).setDepth(78),rock=this.add.graphics().setPosition(x,y).setDepth(520+i%3);
-   rock.fillStyle(i%2?0x88785f:0xa38d69).fillPoints([{x:-size,y:-size*.3},{x:-size*.4,y:-size},{x:size*.7,y:-size*.6},{x:size,y:size*.4},{x:0,y:size*.7}],true);rock.fillStyle(0xd7c298,.85).fillTriangle(-size,-size*.3,-size*.4,-size,size*.7,-size*.6);rock.fillStyle(0x514737,.9).fillTriangle(0,0,size*.7,-size*.6,size,size*.4);
-   this.tweens.add({targets:{flight:0},flight:1,duration:(420+i%5*50)*speed,onUpdate:t=>{const p=t.progress;rock.x=x+(landX-x)*p;rock.y=y+(landY-y)*p-Math.sin(p*Math.PI)*lift;rock.rotation=p*(i%2?3:-3);shadow.x=rock.x;shadow.y=y+(landY-y)*p;shadow.alpha=.3*(1-.5*Math.sin(p*Math.PI))},onComplete:()=>{this.tweens.add({targets:rock,alpha:0,delay:160*speed,duration:280*speed,onComplete:()=>rock.destroy()});this.tweens.add({targets:shadow,alpha:0,delay:160*speed,duration:280*speed,onComplete:()=>shadow.destroy()})}});
+  const angles=[-.2,.48,1.2,2.12,2.8,3.55,4.35,5.35];
+  for(let arm=0;arm<angles.length;arm++){
+   let px=x,py=y;const a=angles[arm],length=44+(arm*23%53);
+   for(let step=0;step<length;step+=2){
+    const kink=Math.sin(step*.12+arm)*5+Math.sin(step*.31+arm)*2;
+    px=snap(x+Math.cos(a)*step+Math.sin(a)*kink);py=snap(y+Math.sin(a)*step*.38+Math.cos(a)*kink*.45);
+    ground.fillStyle(0xd0bb87,.7).fillRect(px,py+2,4,2);ground.fillStyle(0x453e2c,.9).fillRect(px,py,step<22?4:2,2);
+    if(step>16&&step%22===0)for(let branch=0;branch<12;branch+=2){const bx=snap(px+Math.cos(a+.75)*branch),by=snap(py+Math.sin(a+.75)*branch*.5);ground.fillStyle(0x625539,.8).fillRect(bx,by,2,2)}
+   }
   }
-  for(let i=0;i<15;i++){const a=i*2.399,g=this.add.graphics().setPosition(x,y).setDepth(510).setAlpha(.32);g.fillStyle(0xbfa67c).fillRect(-8,-4,16,8).fillRect(-5,-7,10,14);this.tweens.add({targets:g,x:x+Math.cos(a)*(40+i%5*15),y:y+Math.sin(a)*22-8-i%3*10,scaleX:1.7,scaleY:1.4,alpha:0,duration:(350+i%4*90)*speed,onComplete:()=>g.destroy()})}
-  this.cameras.main.flash(70*speed,216,191,143);this.cameras.main.shake(230*speed,.012);
+  this.tweens.add({targets:ground,alpha:0,delay:1000*speed,duration:650*speed,onComplete:()=>ground.destroy()});
+  // Hand-shaped chips with a lit top, side planes and tiny soil inclusions.
+  const chips=['..aa...','.abbac.','abbcccd','.bccdd.','..ddd..'];
+  const colors={a:0xc4b18b,b:0xa4916e,c:0x83765a,d:0x5b533e};
+  for(let i=0;i<24;i++){
+   const a=i*2.399,range=34+i%6*17,lift=22+i%5*13,lx=x+Math.cos(a)*range,ly=y+Math.sin(a)*range*.34;
+   const rock=this.add.graphics().setDepth(520+i%3),shadow=this.add.graphics().setDepth(78),unit=i%4===0?2:1;
+   chips.forEach((row,j)=>[...row].forEach((c,k)=>{if(colors[c])rock.fillStyle(colors[c]).fillRect((k-3)*unit,(j-2)*unit,unit,unit)}));
+   shadow.fillStyle(0x31331f,.32).fillRect(-4,-1,8,2);rock.setPosition(x,y);shadow.setPosition(x,y);
+   this.tweens.add({targets:{flight:0},flight:1,duration:(440+i%5*45)*speed,onUpdate:t=>{const p=t.progress;rock.x=snap(x+(lx-x)*p);rock.y=snap(y+(ly-y)*p-Math.sin(p*Math.PI)*lift);shadow.x=rock.x;shadow.y=snap(y+(ly-y)*p);shadow.alpha=.25+.25*p},onComplete:()=>{this.tweens.add({targets:rock,alpha:0,delay:260*speed,duration:300*speed,onComplete:()=>rock.destroy()});this.tweens.add({targets:shadow,alpha:0,delay:260*speed,duration:300*speed,onComplete:()=>shadow.destroy()})}});
+  }
+  for(let i=0;i<10;i++){
+   const a=i*2.399,dust=this.add.graphics().setPosition(snap(x+Math.cos(a)*18),snap(y+Math.sin(a)*7)).setDepth(510);
+   for(let r=-4;r<=4;r++)for(let c=-7;c<=7;c++){const edge=c*c/49+r*r/16;if(edge<1&&((c*3+r*7+i+90)%7)>1)dust.fillStyle(edge>.65?0x8c8261:0xb5a47c,edge>.65?.16:.27).fillRect(c*2,r*2,2,2)}
+   this.tweens.add({targets:dust,x:snap(x+Math.cos(a)*(48+i%4*15)),y:snap(y+Math.sin(a)*18-16),alpha:0,duration:(480+i%3*70)*speed,onComplete:()=>dust.destroy()});
+  }
+  this.cameras.main.flash(50*speed,206,185,139);this.cameras.main.shake(200*speed,.01);
  }
  hammerSpinImpact(x,y,speed){
-  const slash=this.add.graphics().setPosition(x,y).setDepth(585),points=[];for(let i=0;i<=16;i++){const a=-.7+i*Math.PI*1.4/16;points.push({x:Math.cos(a)*113,y:Math.sin(a)*29})}
-  slash.lineStyle(13,0xe7b66a,.17).strokePoints(points,false);slash.lineStyle(5,0xffe0a6,.6).strokePoints(points,false);slash.lineStyle(1.5,0xfffae4,.95).strokePoints(points,false);this.tweens.add({targets:slash,scaleX:1.25,alpha:0,duration:230*speed,onComplete:()=>slash.destroy()});
-  for(let i=0;i<25;i++){const a=i*2.399,p=this.add.rectangle(x,y,i%3===0?6:2,2,i%3?0xffd69b:0xfff8dd).setRotation(a).setDepth(590);this.tweens.add({targets:p,x:x+Math.cos(a)*(30+i%6*14),y:y+Math.sin(a)*(12+i%4*9),alpha:0,duration:(160+i%4*45)*speed,onComplete:()=>p.destroy()})}
-  const dust=this.add.ellipse(x,y+43,40,7,0xbca477,.22).setDepth(77);this.tweens.add({targets:dust,scaleX:4,alpha:0,duration:280*speed,onComplete:()=>dust.destroy()});this.cameras.main.flash(55*speed,225,200,155);this.cameras.main.shake(150*speed,.008);
+  window.GameAudio?.sfx('bossFireImpact');
+  // Seven discrete pixel explosion cels: hot core, curling fire, then embers.
+  for(let frame=0;frame<7;frame++)this.time.delayedCall((55+frame*55)*speed,()=>{
+   const g=this.add.graphics().setDepth(590),radius=14+frame*9;
+   for(let j=-22;j<=22;j++)for(let i=-34;i<=34;i++){
+    const px=i*2,py=j*2,r=Math.sqrt(px*px+py*py*1.8),angle=Math.atan2(py,px),edge=radius*(.83+.12*Math.sin(angle*7+frame));
+    if(r<edge&&r>Math.max(0,radius-frame*9-15)){
+     const noise=(i*13+j*7+frame*11+900)%17;if(noise<2+frame)continue;
+     const heat=(edge-r)/Math.max(10,radius*.5),palette=frame<3?[0xbc4526,0xec6a25,0xffa638,0xffdb76,0xfff0c0]:[0x78382a,0xbc4e28,0xf17b2e,0xffbc55];
+     g.fillStyle(palette[Math.min(palette.length-1,Math.floor(heat*palette.length))]).fillRect(Math.round((x+px)/2)*2,Math.round((y+py)/2)*2,2,2);
+    }
+   }
+   this.time.delayedCall(60*speed,()=>g.destroy());
+  });
+  for(let i=0;i<22;i++){const a=i*2.399,p=this.add.graphics().setPosition(x,y).setDepth(595);p.fillStyle(0xf77a2a).fillRect(-2,-2,4,4);p.fillStyle(0xffe2a1).fillRect(0,-2,2,2);this.tweens.add({targets:p,x:x+Math.cos(a)*(30+i%7*11),y:y+Math.sin(a)*(20+i%4*12)-12,alpha:0,delay:70*speed,duration:(250+i%4*65)*speed,onComplete:()=>p.destroy()})}
+  this.cameras.main.flash(45*speed,255,217,155);this.cameras.main.shake(230*speed,.012);
  }
+
 
  async bossAttack(a,b,skill,speed,onHit){
   const wait=ms=>new Promise(r=>this.time.delayedCall(ms*speed,r)),move=(y,ms)=>new Promise(resolve=>this.tweens.add({targets:a.root,y,duration:ms*speed,ease:'Cubic.easeOut',onUpdate:()=>{a.shadow.x=a.root.x;a.shadow.y=a.root.y+3;a.shadow.setDepth(a.root.y-1)},onComplete:()=>{a.shadow.y=y+3;resolve()}}));
@@ -453,17 +489,28 @@ a.root.setDepth(contact);a.shadow.setDepth(contact-1);
    this.setBossPose(a,2);await wait(290);if(dodged)dodgeMotion=this.evade(b,speed);window.GameAudio?.sfx('bossSlam');this.setBossPose(a,3);await move(home+57,110);
    this.hammerGroundImpact(a.root.x,a.root.y+23,speed);
   }else{
-   // Hold the hammer behind the torso before a compact explosive full turn.
+   // Visible ignition on the held hammer, then a weighty swing and impact hold.
    this.setBossPose(a,0,true);window.GameAudio?.sfx('bossSpinCharge');
-   const charge=this.add.graphics().setPosition(a.root.x,a.root.y+3).setDepth(a.root.y-2).setAlpha(.2).setScale(1.4);
-   charge.lineStyle(1,0xe6bd78,.6).strokeEllipse(0,0,80,23);charge.lineStyle(1,0xe6bd78,.25).strokeEllipse(0,0,100,29);
-   this.tweens.add({targets:charge,scaleX:.5,scaleY:.5,alpha:.85,duration:510*speed,ease:'Cubic.easeIn'});
-   for(let i=0;i<14;i++){const a0=i*2.399,p=this.add.rectangle(a.root.x+Math.cos(a0)*50,a.root.y-50+Math.sin(a0)*32,2,2,0xf1d8a4).setDepth(580);this.tweens.add({targets:p,x:a.root.x-28,y:a.root.y-52,alpha:0,delay:i*17*speed,duration:310*speed,onComplete:()=>p.destroy()})}
-   await wait(520);charge.destroy();if(dodged)dodgeMotion=this.evade(b,speed);await move(home+48,65);window.GameAudio?.sfx('bossSpin');
-   const frames=[30,25,25,20,20,25,45,65];
+   const charge=this.add.graphics().setDepth(580),hx=a.root.x-55,hy=a.root.y-74;
+   for(let frame=0;frame<6;frame++){
+    charge.clear();this.pixelFlame(charge,hx,hy,12+frame*3,frame);
+    for(let j=0;j<8;j++){const angle=j*.785+frame*.34,r=38-frame*4,px=Math.round((hx+Math.cos(angle)*r)/2)*2,py=Math.round((hy+Math.sin(angle)*r*.65)/2)*2;charge.fillStyle(j%2?0xffcf75:0xf17b35,.8).fillRect(px,py,2,4)}
+    await wait(130);
+   }
+   charge.destroy();if(dodged)dodgeMotion=this.evade(b,speed);await move(home+48,95);window.GameAudio?.sfx('bossSpin');
+   const frames=[85,70,55,45,45,60,90,115],hammerHeads=[[-55,-74],[-69,-62],[-73,-42],[-40,-23],[22,-22],[66,-42],[57,-67],[4,-79]];
    for(let i=0;i<8;i++){
-    this.setBossPose(a,i,true);const arc=this.add.graphics().setPosition(a.root.x,a.root.y-45).setDepth(495);arc.lineStyle(11,0xddbd86,.2).beginPath().arc(0,0,77,i*.78,i*.78+2).strokePath();arc.lineStyle(3,0xffe8bb,.75).beginPath().arc(0,0,77,i*.78,i*.78+1.6).strokePath();this.tweens.add({targets:arc,alpha:0,duration:160*speed,onComplete:()=>arc.destroy()});
-    if(i===6){this.hammerSpinImpact(a.root.x,a.root.y-40,speed);onHit(dodged);struck=true}await wait(frames[i]);
+    this.setBossPose(a,i,true);
+    const fire=this.add.graphics().setDepth(i<3?495:585),[dx,dy]=hammerHeads[i];
+    // Flames cling to each hammer pose; a short fading trail follows the head.
+    for(let j=3;j>=0;j--){const prev=hammerHeads[Math.max(0,i-1)],mix=j/5;this.pixelFlame(fire,a.root.x+dx+(prev[0]-dx)*mix,a.root.y+dy+(prev[1]-dy)*mix,22-j*4,i+j)}
+    this.tweens.add({targets:fire,alpha:0,delay:(i===6?170:30)*speed,duration:160*speed,onComplete:()=>fire.destroy()});
+    if(i===6){
+     this.hammerSpinImpact(b.root.x,b.homeY-48,speed);onHit(dodged);struck=true;
+     if(!dodged)b.sprite.setTintFill(0xffdfa0);
+     await wait(dodged?80:180);b.sprite.clearTint();
+    }
+    await wait(frames[i]);
    }
   }
   if(!struck)onHit(dodged);
