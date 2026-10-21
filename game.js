@@ -11,10 +11,10 @@ function isolateSprite(rgba,width,height,seedX,seedY){
 const $=id=>document.getElementById(id);let scene;
 class Field extends Phaser.Scene{
  constructor(){super('field')}
- preload(){for(const [k,f]of [['forest','forest-map.png'],['battleground','battle-field-v6.png'],['north','hero-16-v7.png'],['south','foe-16-v7.png'],['evade','evade-perspective-v6.png'],['faces','faces-perspective-v6.png'],['walk','hero-walk-v10.png'],['ice','ice-storm-v3.png'],['cast','hero-cast-v1.png'],['idle','hero-idle-v1.png']])this.load.image(k,window.JRPG_ASSETS?.[k]||'assets/'+f);this.add.text(400,280,'성문의 숲을 불러오는 중…',{fontSize:18,color:'#d7b878'}).setOrigin(.5);}
+ preload(){for(const [k,f]of [['forest','forest-map.png'],['battleground','battle-field-v6.png'],['north','hero-16-v7.png'],['south','foe-16-v7.png'],['evade','evade-perspective-v6.png'],['faces','faces-perspective-v6.png'],['walk','hero-walk-v10.png'],['ice','ice-storm-v3.png'],['cast','hero-cast-v1.png'],['idle','hero-idle-v1.png'],['boss','ralo-v1.png'],['bossSpin','ralo-spin-v1.png']])this.load.image(k,window.JRPG_ASSETS?.[k]||'assets/'+f);this.add.text(400,280,'성문의 숲을 불러오는 중…',{fontSize:18,color:'#d7b878'}).setOrigin(.5);}
  unit(x,y,key,height){const atlas=key==='hero'?'north':'south',p=this.battlePoseData[atlas][0];return this.add.image(x,y+27,this.spriteKeys[atlas],'pose0').setOrigin(p.ax,p.ay).setScale(46/p.bodyHeight);}
 
- create(){scene=this;this.turn=1;this.ultimateReady=true;this.movesLeft=3;this.walking=false;this.facing='north';this.nextKeyAt=0;this.attackKind='jump';this.menuOpen=false;this.commandPending=false;this.commandIndex=0;this.dodgeChance=.5;this.busy=false;this.selected=false;this.p={x:3,y:6,hp:48,mp:50};this.foes=[{x:6,y:5,hp:30},{x:8,y:3,hp:30},{x:5,y:2,hp:30}];this.target=null;this.moved=false;this.art();this.draw();this.bindCommandUI();$('previewUltimate').onclick=()=>this.fight('ultimate',true);$('previewIce').onclick=()=>this.fight('ice',true);$('end').onclick=()=>this.end();$('reset').onclick=()=>this.scene.restart();this.setupKeyboard();this.sync();}
+ create(){scene=this;this.turn=1;this.ultimateReady=true;this.movesLeft=3;this.walking=false;this.facing='north';this.nextKeyAt=0;this.attackKind='jump';this.menuOpen=false;this.commandPending=false;this.commandIndex=0;this.dodgeChance=.5;this.busy=false;this.selected=false;this.p={x:3,y:6,hp:48,mp:50};this.foes=[{x:6,y:5,hp:30},{x:8,y:3,hp:30},{x:5,y:2,hp:30},{x:5,y:1,hp:90,maxHP:90,name:'랄로',kind:'boss',counter:12,skillIndex:0}];this.target=null;this.moved=false;this.art();this.draw();this.bindCommandUI();$('previewUltimate').onclick=()=>this.fight('ultimate',true);$('previewIce').onclick=()=>this.fight('ice',true);$('end').onclick=()=>this.end();$('reset').onclick=()=>this.scene.restart();this.setupKeyboard();this.sync();}
  packSpriteAtlas(key,entries){
   const packed=key+'-packed',cellW=Math.max(...entries.map(e=>e.rect[2]))+4,cellH=Math.max(...entries.map(e=>e.rect[3]))+4;
   if(this.textures.exists(packed))return packed;
@@ -27,6 +27,16 @@ class Field extends Phaser.Scene{
   }
   texture.refresh();texture.setFilter(Phaser.Textures.FilterMode.NEAREST);return packed;
  }
+ enemyName(e){return e?.name||'보라 망토 용병'}
+ enemyMaxHP(e){return e?.maxHP||30}
+ prepareBossAtlas(){
+  const main=[[12,72,386,353,230,404,310,230,180],[429,74,385,352,660,404,310,650,175],[911,0,330,426,1070,410,310,1080,180],[24,451,389,387,213,779,310,235,550],[423,450,410,387,667,787,310,670,550],[842,451,398,387,1059,790,310,1060,550],[0,846,442,370,227,1151,310,235,970],[443,846,389,370,651,1187,310,650,980],[835,846,419,370,1045,1207,310,1045,1000]];
+  const spin=[[0,65,447,365,278,416,310,280,172],[450,65,470,365,620,415,310,650,170],[895,65,420,370,1044,420,310,1070,180],[1310,65,464,370,1464,420,310,1480,180],[0,470,445,370,276,810,310,280,590],[445,470,435,370,724,814,310,700,590],[880,480,425,355,1050,812,310,1040,620],[1302,480,472,355,1460,813,310,1460,620]];
+  this.spriteKeys.boss=this.packSpriteAtlas('boss',main.map((rect,i)=>({name:i===8?'face':'pose'+i,rect})));
+  this.spriteKeys.bossSpin=this.packSpriteAtlas('bossSpin',spin.map((rect,i)=>({name:'pose'+i,rect})));
+  const meta=([x,y,w,h,px,py,bodyHeight])=>({ax:(px-x)/w,ay:(py-y)/h,bodyHeight});this.battlePoseData.boss=main.slice(0,8).map(meta);this.battlePoseData.bossSpin=spin.map(meta);
+ }
+ setBossPose(f,index,spin=false){const key=spin?'bossSpin':'boss',p=this.battlePoseData[key][index];f.sprite.setTexture(this.spriteKeys[key],'pose'+index).setOrigin(p.ax,p.ay).setScale(118/p.bodyHeight);return f}
  prepareIdleAtlas(){
   const texture=this.textures.get('idle'),directions=['north','south','west','east'],anchors=[[390,598,474],[858,598,474],[380,1156,482],[870,1156,482]];
   this.idlePoseData={};for(let i=0;i<4;i++){const x=i%2*627,y=Math.floor(i/2)*627,[px,py,height]=anchors[i],name=directions[i];if(!texture.has(name))texture.add(name,0,x,y,627,627);this.idlePoseData[name]={ax:(px-x)/627,ay:(py-y)/627,bodyHeight:height}}
@@ -60,6 +70,7 @@ class Field extends Phaser.Scene{
   }
   this.spriteKeys.evade=this.packSpriteAtlas('evade',['north','south'].flatMap(key=>data.evade[key].map((rect,i)=>({name:key+i,rect}))));
   this.spriteKeys.walk=this.packSpriteAtlas('walk',Object.entries(data.walk).map(([name,rect])=>({name,rect})));this.walkPoseData=Object.fromEntries(Object.entries(data.walk).map(([name,rect])=>[name,meta(rect)]));
+  this.prepareBossAtlas();
   const faces=this.textures.get('faces');for(const key of ['hero','foe']){const[x,y,w,h]=data.faces[key];if(faces.has(key))faces.remove(key);faces.add(key,0,x,y,w,h)}
  }
 
@@ -69,7 +80,7 @@ class Field extends Phaser.Scene{
  draw(){this.tweens.killAll();this.children.removeAll(true);this.add.image(400,280,'forest').setDisplaySize(800,560);let g=this.add.graphics();
  for(let y=1;y<8;y++)for(let x=0;x<11;x++){if(this.blocked(x,y))continue;let p=this.cell(x,y);g.lineStyle(1,0xf0e4b6,.09).strokeRect(p.x,p.y,60,60)}
  if(!this.moved&&!this.busy){for(let k of this.reach().keys()){let[x,y]=k.split(',').map(Number),p=this.cell(x,y);g.fillStyle(0x4bd2dc,.18).fillRect(p.x+2,p.y+2,55,55);g.lineStyle(1,0xc3f3f4,.55).strokeRect(p.x+2,p.y+2,55,55)}}
- for(let e of this.foes.filter(e=>e.hp>0)){let p=this.cell(e.x,e.y);if(this.target===e){g.lineStyle(2,0xe4b776).strokeRect(p.x+2,p.y+2,55,55)}g.fillStyle(0x0b1820,.18).fillEllipse(p.x+30,p.y+48,34,8);g.fillStyle(0x08150f,.4).fillEllipse(p.x+30,p.y+47,23,5);g.fillStyle(0x07130d,.56).fillRect(p.x+24,p.y+45,12,3);this.unit(p.x+30,p.y+20,'enemy',57,true).setDepth(31).setInteractive({useHandCursor:true}).on('pointerdown',(pointer,localX,localY,event)=>{event?.stopPropagation();return this.click(e.x,e.y)});g.fillStyle(0x121f19).fillRect(p.x+10,p.y+51,40,4);g.fillStyle(0xcb7b72).fillRect(p.x+10,p.y+51,40*e.hp/30,4)}let p=this.cell(this.p.x,this.p.y);g.lineStyle(2,0xbfdac6).strokeRect(p.x+4,p.y+3,51,53);this.createMapHero(p.x+30,p.y+47);for(let y=0;y<8;y++)for(let x=0;x<11;x++){let p=this.cell(x,y);this.add.zone(p.x+30,p.y+30,60,60).setInteractive({useHandCursor:true}).on('pointerdown',()=>this.click(x,y))}
+ for(let e of this.foes.filter(e=>e.hp>0)){let p=this.cell(e.x,e.y);if(this.target===e){g.lineStyle(2,0xe4b776).strokeRect(p.x+2,p.y+2,55,55)}g.fillStyle(0x0b1820,.18).fillEllipse(p.x+30,p.y+48,34,8);g.fillStyle(0x08150f,.4).fillEllipse(p.x+30,p.y+47,23,5);g.fillStyle(0x07130d,.56).fillRect(p.x+24,p.y+45,12,3);(e.kind==='boss'?this.add.image(p.x+30,p.y+47,this.spriteKeys.boss,'pose0').setOrigin(this.battlePoseData.boss[0].ax,this.battlePoseData.boss[0].ay).setScale(64/this.battlePoseData.boss[0].bodyHeight):this.unit(p.x+30,p.y+20,'enemy',57,true)).setDepth(31).setInteractive({useHandCursor:true}).on('pointerdown',(pointer,localX,localY,event)=>{event?.stopPropagation();return this.click(e.x,e.y)});g.fillStyle(0x121f19).fillRect(p.x+10,p.y+51,40,4);g.fillStyle(0xcb7b72).fillRect(p.x+10,p.y+51,40*e.hp/this.enemyMaxHP(e),4);if(e.kind==='boss')this.add.text(p.x+30,p.y-27,'◆ 랄로',{fontSize:10,color:'#ffd49b',stroke:'#302119',strokeThickness:3}).setOrigin(.5).setDepth(32)}let p=this.cell(this.p.x,this.p.y);g.lineStyle(2,0xbfdac6).strokeRect(p.x+4,p.y+3,51,53);this.createMapHero(p.x+30,p.y+47);for(let y=0;y<8;y++)for(let x=0;x<11;x++){let p=this.cell(x,y);this.add.zone(p.x+30,p.y+30,60,60).setInteractive({useHandCursor:true}).on('pointerdown',()=>this.click(x,y))}
  this.add.text(24,525,'ASHEN GATE  /  NORTH WOODS',{fontSize:10,color:'#a4b393',letterSpacing:2});this.add.text(625,525,'✦  FOREST FRONTIER',{fontSize:10,color:'#a4b393'});}
  keyboardAllowed(){const el=document.activeElement;return !el||(!el.isContentEditable&&!['INPUT','TEXTAREA','SELECT'].includes(el.tagName));}
  setupKeyboard(){
@@ -170,7 +181,7 @@ class Field extends Phaser.Scene{
   const visible=this.menuOpen&&!locked&&!!this.target&&this.target.hp>0;
   $('commandMenu').hidden=!visible;$('commandBackdrop').hidden=!visible;$('battleArea').classList.toggle('command-active',visible);if(this.input)this.input.enabled=!visible;
   if(!this.menuOpen||!this.target)return;
-  $('targetName').textContent='보라 망토 용병';$('targetHP').textContent='HP '+this.target.hp+' / 30';
+  $('targetName').textContent=this.target.kind==='boss'?'중간보스 · 랄로':this.enemyName(this.target);$('targetHP').textContent='HP '+this.target.hp+' / '+this.enemyMaxHP(this.target);
   $('approachInfo').textContent=this.commandIndex===3?'전장 전체를 휩쓰는 광역 마법 · 이동 없이 시전':plan?(plan.cost?'이동 '+plan.cost+'칸 후 공격 · 한 번에 실행됩니다':'공격 사거리 안 · 바로 사용할 수 있습니다'):'이번 턴의 이동력으로 접근할 수 없습니다';
   $('approachInfo').classList.toggle('unavailable',!plan&&this.commandIndex!==3);$('menuUltimateState').textContent=this.ultimateReady?'9연격 · 명중 100% · 출격당 1회':'이번 출격에서 사용 완료';
   $('hitChance').textContent=[50,75,100,100][this.commandIndex]+'%';
@@ -202,7 +213,7 @@ class Field extends Phaser.Scene{
    this.target=foe;if(kind!=='ice'&&!this.canAttackTarget(foe))return false;await this.fight(kind);return true;
   }finally{this.commandPending=false;this.sync();this.game?.canvas?.focus?.({preventScroll:true});}
  }
- setCombatPose(f,i){const p=this.battlePoseData[f.key][i];f.sprite.setTexture(this.spriteKeys[f.key],'pose'+i).setOrigin(p.ax,p.ay).setScale(92/p.bodyHeight);return f;}
+ setCombatPose(f,i){if(f.key==='boss')return this.setBossPose(f,[0,1,1,2,2,3,3,4,0,1,1,2,2,3,4,0][i]??0);const p=this.battlePoseData[f.key][i];f.sprite.setTexture(this.spriteKeys[f.key],'pose'+i).setOrigin(p.ax,p.ay).setScale(92/p.bodyHeight);return f;}
  groundShadow(x,y,width=52){
   // A broad soft shadow plus a tight contact patch keeps boots on the ground.
   let g=this.add.graphics();
@@ -212,7 +223,7 @@ class Field extends Phaser.Scene{
   return this.add.container(x,y,[g]).setDepth(y-8);
  }
  combatFighter(key,y){
-  let p=this.battlePoseData[key][0],shadow=this.groundShadow(400,y+3,52),sprite=this.add.image(0,0,this.spriteKeys[key],'pose0').setOrigin(p.ax,p.ay).setScale(92/p.bodyHeight);
+  let p=this.battlePoseData[key][0],shadow=this.groundShadow(400,y+3,key==='boss'?76:52),sprite=this.add.image(0,0,this.spriteKeys[key],'pose0').setOrigin(p.ax,p.ay).setScale((key==='boss'?118:92)/p.bodyHeight);
   let root=this.add.container(400,y,[sprite]).setDepth(y);
   return{key,root,sprite,shadow,homeY:y,dir:key==='north'?-1:1};
  }
@@ -221,14 +232,14 @@ class Field extends Phaser.Scene{
   this.add.text(x+13,y+10,name,{fontSize:12,color:'#f3e6cb',fontFamily:'sans-serif'}).setDepth(101);let label=this.add.text(x+130,y+11,'HP '+hp,{fontSize:12,color:'#f7ead5'}).setDepth(101);
   this.add.rectangle(x+13,y+38,168,8,0x0d151e).setOrigin(0).setDepth(101);let bar=this.add.rectangle(x+13,y+38,168,8,f.key==='north'?0x9fc4e3:0xc28a8d).setScale(hp/max,1).setOrigin(0).setDepth(102);
   let px=f.key==='north'?x+108:x;g.fillStyle(0x233035,.97).fillRect(px,portraitY,86,88);g.lineStyle(3,0x9f7954).strokeRect(px,portraitY,86,88);
-  this.add.image(px+43,portraitY+45,'faces',f.key==='north'?'hero':'foe').setDisplaySize(78,80).setDepth(101);
+  this.add.image(px+43,portraitY+45,f.key==='boss'?this.spriteKeys.boss:'faces',f.key==='boss'?'face':f.key==='north'?'hero':'foe').setDisplaySize(78,80).setDepth(101);
   return{set:(v)=>{label.setText('HP '+v);this.tweens.add({targets:bar,scaleX:v/max,duration:180,ease:'Sine.easeOut'})}};
  }
  rollEvasion(chance=this.dodgeChance){return chance>0&&Math.random()<chance;}
  async evade(f,speed){
   window.GameAudio?.sfx('evade');
   const wait=ms=>new Promise(r=>this.time.delayedCall(ms*speed,r)),move=(target,props,ms)=>new Promise(resolve=>this.tweens.add({targets:target,...props,duration:ms*speed,ease:'Cubic.easeOut',onComplete:resolve}));
-  const side=f.key==='north'?-1:1,setPose=i=>{const p=this.evasionPoseData[f.key][i];f.sprite.setTexture(this.spriteKeys.evade,f.key+i).setOrigin(p.ax,p.ay).setScale(92/p.bodyHeight)};
+  const side=f.key==='north'?-1:1,setPose=i=>{if(f.key==='boss'){this.setBossPose(f,i===0?6:5);return}const p=this.evasionPoseData[f.key][i];f.sprite.setTexture(this.spriteKeys.evade,f.key+i).setOrigin(p.ax,p.ay).setScale(92/p.bodyHeight)};
   setPose(0);this.tweens.add({targets:f.shadow,x:400+side*64,y:f.homeY+8,duration:105*speed});
   await move(f.root,{x:400+side*64,y:f.homeY+8},105);await wait(280);
   setPose(1);this.tweens.add({targets:f.shadow,x:400,y:f.homeY+3,duration:160*speed});
@@ -385,6 +396,35 @@ a.root.setDepth(contact);a.shadow.setDepth(contact-1);
   for(const o of owned)o.destroy();
  }
 
+ async bossSkillBanner(skill,speed){
+  const move=(target,props,ms)=>new Promise(resolve=>this.tweens.add({targets:target,...props,duration:ms*speed,ease:'Cubic.easeOut',onComplete:resolve}));
+  const name=skill===0?'이터널리턴지금바로시작!':'사펑이나 빨리 보라능 헤헤';
+  window.GameAudio?.sfx('bossCharge');
+  const panel=this.add.rectangle(400,114,800,112,0x281b15,.97).setDepth(700),edge=this.add.rectangle(400,170,800,2,0xd4a366,.9).setDepth(701),portrait=this.add.image(-80,114,this.spriteKeys.boss,'face').setDisplaySize(112,108).setDepth(702),label=this.add.text(224,78,'MIDBOSS · 랄로',{fontSize:12,color:'#d3a56c',letterSpacing:2}).setDepth(702),title=this.add.text(222,106,name,{fontSize:23,color:'#fff0d3',stroke:'#342116',strokeThickness:3}).setDepth(702);
+  await move(portrait,{x:136},200);await new Promise(r=>this.time.delayedCall(380*speed,r));
+  await Promise.all([move(portrait,{x:900,alpha:0},180),move(panel,{alpha:0},180),move(edge,{alpha:0},180),move(label,{alpha:0},180),move(title,{alpha:0},180)]);
+  for(const o of [panel,edge,portrait,label,title])o.destroy();
+ }
+ async bossAttack(a,b,skill,speed,onHit){
+  const wait=ms=>new Promise(r=>this.time.delayedCall(ms*speed,r)),move=(y,ms)=>new Promise(resolve=>this.tweens.add({targets:a.root,y,duration:ms*speed,ease:'Cubic.easeOut',onUpdate:()=>{a.shadow.x=a.root.x;a.shadow.y=a.root.y+3;a.shadow.setDepth(a.root.y-1)},onComplete:()=>{a.shadow.y=y+3;resolve()}}));
+  const dodged=this.rollEvasion(),home=a.homeY;let dodgeMotion=null;
+  this.setBossPose(a,1);await move(home-5,140);await wait(170);
+  if(dodged)dodgeMotion=this.evade(b,speed);
+  if(skill===0){
+   this.setBossPose(a,2);await wait(290);window.GameAudio?.sfx('bossSlam');this.setBossPose(a,3);await move(home+57,110);
+   const dust=this.add.ellipse(a.root.x,a.root.y+18,20,6,0xd8bb84,.3).setDepth(a.root.y-2);this.tweens.add({targets:dust,scaleX:5,scaleY:2,alpha:0,duration:300*speed,onComplete:()=>dust.destroy()});
+   const crack=this.add.graphics().setDepth(490);for(let i=0;i<7;i++){const angle=i*Math.PI/3.5;crack.lineStyle(2,0x362a22,.65).lineBetween(400,302,400+Math.cos(angle)*40,302+Math.sin(angle)*13)}this.tweens.add({targets:crack,alpha:0,duration:550*speed,onComplete:()=>crack.destroy()});
+  }else{
+   await move(home+48,140);window.GameAudio?.sfx('bossSpin');
+   for(let i=0;i<8;i++){
+    this.setBossPose(a,i,true);const arc=this.add.graphics().setPosition(a.root.x,a.root.y-45).setDepth(495);arc.lineStyle(7,0xddbd86,.15).beginPath().arc(0,0,64,i*.78,i*.78+1.5).strokePath();arc.lineStyle(2,0xffe8bb,.6).beginPath().arc(0,0,64,i*.78,i*.78+1.05).strokePath();this.tweens.add({targets:arc,alpha:0,duration:150*speed,onComplete:()=>arc.destroy()});await wait(55);
+   }
+  }
+  onHit(dodged);
+  if(!dodged){b.sprite.setTintFill(0xffddbd);this.cameras.main.shake(180*speed,skill===0?.009:.006);await wait(90);b.sprite.clearTint()}else{const miss=this.add.text(b.root.x,b.homeY-90,'회피',{fontSize:17,color:'#d9f4ed',stroke:'#294238',strokeThickness:3}).setOrigin(.5).setDepth(600);this.tweens.add({targets:miss,y:miss.y-14,alpha:0,duration:650*speed,onComplete:()=>miss.destroy()});await wait(90)}
+  this.setBossPose(a,4);await wait(140);await move(home,250);this.setBossPose(a,0);a.shadow.setDepth(home-1);if(dodgeMotion)await dodgeMotion;
+ }
+
  async fight(overrideKind=null,preview=false){
   if(this.busy||this.walking||(!preview&&((overrideKind||this.attackKind)==='ice'?(!this.target||this.target.hp<=0||this.p.hp<=0||this.p.mp<50):!this.canAttackTarget()))||(!preview&&(overrideKind||this.attackKind)==='ultimate'&&!this.ultimateReady))return;let foe=preview?{hp:overrideKind==='ice'?30:38,maxHP:overrideKind==='ice'?30:38}:this.target,kind=overrideKind||this.attackKind||'jump',events=[];if(kind==='ultimate'&&!preview)this.ultimateReady=false;if(kind==='ice'&&!preview)this.p.mp-=50;this.hideCommands();this.busy=true;this.sync();
   const speed=$('fast').checked?.55:1,wait=ms=>new Promise(r=>this.time.delayedCall(ms*speed,r));
@@ -393,29 +433,34 @@ a.root.setDepth(contact);a.shadow.setDepth(contact-1);
   this.tweens.killAll();this.children.removeAll(true);
   this.add.image(400,280,'battleground').setDisplaySize(800,560);let shade=this.add.graphics();shade.fillStyle(0x182c21,.1).fillRect(0,0,800,560);
   // Match the reference: overhead combat on an enlarged field, units above/below.
-  let enemy=this.combatFighter('south',222),hero=this.combatFighter('north',374);
-  let enemyHP=this.combatCard(enemy,'보라 망토 용병',foe.hp,foe.maxHP||30,24,24,103),heroHP=this.combatCard(hero,'루나',preview?48:this.p.hp,48,580,463,365);
-  let title=this.add.text(400,30,kind==='ice'?'마법 필살기 · 빙결폭풍':kind==='ultimate'?(preview?'연출 미리보기 · 월광난무':'필살기 · 월광난무'):kind==='jump'?'낙성참 · 내려찍기':'섬광돌 · 찌르기',{fontSize:13,color:'#fff2cd',stroke:'#243325',strokeThickness:4}).setOrigin(.5).setDepth(101);
+  let enemy=this.combatFighter(foe.kind==='boss'?'boss':'south',222),hero=this.combatFighter('north',374);
+  let enemyHP=this.combatCard(enemy,this.enemyName(foe),foe.hp,this.enemyMaxHP(foe),24,24,103),heroHP=this.combatCard(hero,'루나',preview?48:this.p.hp,48,580,463,365);
+  let title=this.add.text(400,30,kind==='bossTurn'?'랄로 · 중간보스':kind==='ice'?'마법 필살기 · 빙결폭풍':kind==='ultimate'?(preview?'연출 미리보기 · 월광난무':'필살기 · 월광난무'):kind==='jump'?'낙성참 · 내려찍기':'섬광돌 · 찌르기',{fontSize:13,color:'#fff2cd',stroke:'#243325',strokeThickness:4}).setOrigin(.5).setDepth(101);
   const damage=(defender,amount)=>{let n=this.add.text(defender.root.x+42,defender.root.y-62,String(amount),{fontSize:23,color:'#fff3c5',stroke:'#433127',strokeThickness:3}).setDepth(110);this.tweens.add({targets:n,y:n.y-22,alpha:0,duration:650*speed,onComplete:()=>n.destroy()})};
   await wait(240);
-  if(kind==='ice'){
-   const victims=preview?[{hp:30},{hp:30},{hp:30}]:this.foes.filter(e=>e.hp>0),fighters=[enemy];
-   enemy.root.x=280;enemy.shadow.x=280;
-   for(let i=1;i<victims.length;i++){const f=this.combatFighter('south',222+(i%2)*13);f.root.x=280+i*120;f.shadow.x=f.root.x;fighters.push(f)}
+  if(kind==='bossTurn')events.push('랄로가 공격한다！');
+  else if(kind==='ice'){
+   const victims=preview?[{hp:30},{hp:30},{hp:30}]:this.foes.filter(e=>e.hp>0),fighters=victims.map((v,i)=>{const f=v===foe?enemy:this.combatFighter(v.kind==='boss'?'boss':'south',222+(i%2)*13);f.root.x=400+(i-(victims.length-1)/2)*125;f.shadow.x=f.root.x;return f});
+   if(preview){enemy.root.setVisible(false);enemy.shadow.setVisible(false)}
    this.add.text(596,449,'MP '+(preview?50:this.p.mp)+' / 50',{fontSize:11,color:'#90e4ff'}).setDepth(105);
    await this.iceStorm(hero,fighters,speed,amount=>{for(const v of victims)v.hp=Math.max(0,v.hp-amount);enemyHP.set(preview?victims[0].hp:foe.hp);for(const f of fighters)damage(f,amount)});
    events.push('적 전체에 빙결폭풍！ 각 28 피해.'+(preview?'':' MP 50 소모.'));
   }else if(kind==='ultimate')await this.ultimateAttack(hero,enemy,speed,(dodged,amount,index)=>{if(dodged){events.push('적이 필살기를 회피했다.')}else{foe.hp=Math.max(0,foe.hp-amount);enemyHP.set(foe.hp);if(index===8)damage(enemy,amount);if(index===8)events.push('9연격！ 총 38 피해.')}},preview);
   else await this.videoAttack(hero,enemy,kind,speed,dodged=>{if(dodged){events.push('적이 회피했다.')}else{foe.hp=Math.max(0,foe.hp-18);enemyHP.set(foe.hp);damage(enemy,18);events.push('적에게 18 피해.')}});
-  if(foe.hp>0&&!preview&&kind!=='ice'){title.setText('반격');await wait(170);await this.videoAttack(enemy,hero,'thrust',speed,dodged=>{if(dodged){events.push('루나가 반격을 회피했다.')}else{this.p.hp=Math.max(0,this.p.hp-7);heroHP.set(this.p.hp);damage(hero,7);events.push('반격으로 7 피해.')}})}
+  if(foe.hp>0&&!preview&&kind!=='ice'){
+   const counterDamage=foe.counter||7,skill=foe.kind==='boss'?(foe.skillIndex||0)%2:null;
+   if(foe.kind==='boss'){foe.skillIndex=(foe.skillIndex||0)+1;events.push(skill===0?'이터널리턴지금바로시작!':'사펑이나 빨리 보라능 헤헤');title.setText(skill===0?'이터널리턴지금바로시작!':'사펑이나 빨리 보라능 헤헤');await this.bossSkillBanner(skill,speed)}else{title.setText('반격');await wait(170)}
+   const onCounter=dodged=>{if(dodged)events.push('루나가 '+this.enemyName(foe)+'의 공격을 회피했다.');else{this.p.hp=Math.max(0,this.p.hp-counterDamage);heroHP.set(this.p.hp);damage(hero,counterDamage);events.push(this.enemyName(foe)+'의 반격으로 '+counterDamage+' 피해.')}};
+   if(foe.kind==='boss')await this.bossAttack(enemy,hero,skill,speed,onCounter);else await this.videoAttack(enemy,hero,'thrust',speed,onCounter);
+  }
   else if(foe.hp<=0){await move(enemy.root,{alpha:0},280);await move(enemy.shadow,{alpha:0},100)}
-  $('log').textContent=(preview?'[미리보기] ':kind==='ice'?'빙결폭풍！ ':kind==='ultimate'?'월광난무！ ':kind==='jump'?'낙성참！ ':'섬광돌！ ')+events.join(' ')+(foe.hp<=0?' 적을 쓰러뜨렸다.':'');await wait(350);
+  $('log').textContent=(preview?'[미리보기] ':kind==='bossTurn'?'랄로！ ':kind==='ice'?'빙결폭풍！ ':kind==='ultimate'?'월광난무！ ':kind==='jump'?'낙성참！ ':'섬광돌！ ')+events.join(' ')+(foe.hp<=0?' 적을 쓰러뜨렸다.':'');await wait(350);
   let fade=this.add.rectangle(400,280,800,560,0x0d1811,0).setDepth(200);await move(fade,{fillAlpha:1},170);
   this.busy=false;if(!preview){this.target=null;this.moved=false;this.movesLeft=3;this.turn++}this.draw();this.sync();$('hint').textContent=preview?'미리보기 완료. 이동과 체력, 필살기 사용 횟수는 그대로입니다.':this.foes.some(e=>e.hp>0)?'새로운 턴입니다. 이동하거나 공격하세요.':'성문을 되찾았습니다! 처음부터 다시 플레이할 수 있어요.';
  }
 
  end(){
-  if(this.busy||$('end').disabled)return;window.GameAudio?.sfx('turn');this.hideCommands();this.turn++;this.moved=false;this.movesLeft=3;this.target=null;
+  if(this.busy||$('end').disabled)return;const adjacentBoss=this.foes.find(e=>e.kind==='boss'&&e.hp>0&&this.dist(e)<=1);if(adjacentBoss){this.target=adjacentBoss;this.lastBossTurnPromise=this.fight('bossTurn');return}window.GameAudio?.sfx('turn');this.hideCommands();this.turn++;this.moved=false;this.movesLeft=3;this.target=null;
   let logs=[],dodges=0,totalDamage=0;
   for(let e of this.foes.filter(e=>e.hp>0)){
    if(this.p.hp<=0)break;

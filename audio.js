@@ -23,6 +23,9 @@
   if(kind==='confirm'){[76,81,88].forEach((n,i)=>tone(sfxBus,note(n),t+i*.045,.15,.13,'triangle'))}
   if(kind==='turn'){[76,72,69,64].forEach((n,i)=>tone(sfxBus,note(n),t+i*.075,.24,.15,'triangle'));tone(sfxBus,110,t,.3,.15,'sine')}
   if(kind==='jump'){noise(t,.18,.24,700);tone(sfxBus,240,t,.2,.15,'sine',550)}
+  if(kind==='bossCharge'){[40,47,52].forEach((n,i)=>tone(sfxBus,note(n),t+i*.09,.5,.15,'triangle'));noise(t,.3,.14,450)}
+  if(kind==='bossSlam'){noise(t,.5,.45,250);tone(sfxBus,105,t,.55,.45,'sine',25)}
+  if(kind==='bossSpin'){for(let i=0;i<4;i++)noise(t+i*.1,.14,.23,650+i*200);tone(sfxBus,200,t,.45,.1,'triangle',65)}
   if(kind==='thrustCharge'){tone(sfxBus,180,t,.43,.09,'triangle',660);tone(sfxBus,1100,t+.26,.18,.05,'sine',1700)}
   if(kind==='thrust'){noise(t,.12,.27,2100);tone(sfxBus,1100,t,.13,.13,'triangle',280)}
   if(kind==='hit'){noise(t,.1,.22,900);tone(sfxBus,150,t,.12,.3,'triangle',45)}
