@@ -23,6 +23,7 @@
   if(kind==='confirm'){[76,81,88].forEach((n,i)=>tone(sfxBus,note(n),t+i*.045,.15,.13,'triangle'))}
   if(kind==='turn'){[76,72,69,64].forEach((n,i)=>tone(sfxBus,note(n),t+i*.075,.24,.15,'triangle'));tone(sfxBus,110,t,.3,.15,'sine')}
   if(kind==='jump'){noise(t,.18,.24,700);tone(sfxBus,240,t,.2,.15,'sine',550)}
+  if(kind==='thrustCharge'){tone(sfxBus,180,t,.43,.09,'triangle',660);tone(sfxBus,1100,t+.26,.18,.05,'sine',1700)}
   if(kind==='thrust'){noise(t,.12,.27,2100);tone(sfxBus,1100,t,.13,.13,'triangle',280)}
   if(kind==='hit'){noise(t,.1,.22,900);tone(sfxBus,150,t,.12,.3,'triangle',45)}
   if(kind==='evade'){noise(t,.2,.16,2600)}

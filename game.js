@@ -69,7 +69,7 @@ class Field extends Phaser.Scene{
  draw(){this.tweens.killAll();this.children.removeAll(true);this.add.image(400,280,'forest').setDisplaySize(800,560);let g=this.add.graphics();
  for(let y=1;y<8;y++)for(let x=0;x<11;x++){if(this.blocked(x,y))continue;let p=this.cell(x,y);g.lineStyle(1,0xf0e4b6,.09).strokeRect(p.x,p.y,60,60)}
  if(!this.moved&&!this.busy){for(let k of this.reach().keys()){let[x,y]=k.split(',').map(Number),p=this.cell(x,y);g.fillStyle(0x4bd2dc,.18).fillRect(p.x+2,p.y+2,55,55);g.lineStyle(1,0xc3f3f4,.55).strokeRect(p.x+2,p.y+2,55,55)}}
- for(let e of this.foes.filter(e=>e.hp>0)){let p=this.cell(e.x,e.y);if(this.target===e){g.lineStyle(2,0xe4b776).strokeRect(p.x+2,p.y+2,55,55)}g.fillStyle(0x0b1820,.38).fillEllipse(p.x+30,p.y+47,38,12);this.unit(p.x+30,p.y+20,'enemy',57,true).setDepth(31).setInteractive({useHandCursor:true}).on('pointerdown',(pointer,localX,localY,event)=>{event?.stopPropagation();return this.click(e.x,e.y)});g.fillStyle(0x121f19).fillRect(p.x+10,p.y+51,40,4);g.fillStyle(0xcb7b72).fillRect(p.x+10,p.y+51,40*e.hp/30,4)}let p=this.cell(this.p.x,this.p.y);g.lineStyle(2,0xbfdac6).strokeRect(p.x+4,p.y+3,51,53);this.createMapHero(p.x+30,p.y+47);for(let y=0;y<8;y++)for(let x=0;x<11;x++){let p=this.cell(x,y);this.add.zone(p.x+30,p.y+30,60,60).setInteractive({useHandCursor:true}).on('pointerdown',()=>this.click(x,y))}
+ for(let e of this.foes.filter(e=>e.hp>0)){let p=this.cell(e.x,e.y);if(this.target===e){g.lineStyle(2,0xe4b776).strokeRect(p.x+2,p.y+2,55,55)}g.fillStyle(0x0b1820,.18).fillEllipse(p.x+30,p.y+48,34,8);g.fillStyle(0x08150f,.4).fillEllipse(p.x+30,p.y+47,23,5);g.fillStyle(0x07130d,.56).fillRect(p.x+24,p.y+45,12,3);this.unit(p.x+30,p.y+20,'enemy',57,true).setDepth(31).setInteractive({useHandCursor:true}).on('pointerdown',(pointer,localX,localY,event)=>{event?.stopPropagation();return this.click(e.x,e.y)});g.fillStyle(0x121f19).fillRect(p.x+10,p.y+51,40,4);g.fillStyle(0xcb7b72).fillRect(p.x+10,p.y+51,40*e.hp/30,4)}let p=this.cell(this.p.x,this.p.y);g.lineStyle(2,0xbfdac6).strokeRect(p.x+4,p.y+3,51,53);this.createMapHero(p.x+30,p.y+47);for(let y=0;y<8;y++)for(let x=0;x<11;x++){let p=this.cell(x,y);this.add.zone(p.x+30,p.y+30,60,60).setInteractive({useHandCursor:true}).on('pointerdown',()=>this.click(x,y))}
  this.add.text(24,525,'ASHEN GATE  /  NORTH WOODS',{fontSize:10,color:'#a4b393',letterSpacing:2});this.add.text(625,525,'✦  FOREST FRONTIER',{fontSize:10,color:'#a4b393'});}
  keyboardAllowed(){const el=document.activeElement;return !el||(!el.isContentEditable&&!['INPUT','TEXTAREA','SELECT'].includes(el.tagName));}
  setupKeyboard(){
@@ -114,7 +114,7 @@ class Field extends Phaser.Scene{
    const dx=x-this.p.x,dy=y-this.p.y;this.facing=dx>0?'east':dx<0?'west':dy>0?'south':'north';this.setWalkPose(this.facing,0);
    const foot=this.cell(x,y);
    await new Promise(resolve=>this.tweens.add({targets:this.mapActor,x:foot.x+30,y:foot.y+47,duration:240,ease:'Linear',onUpdate:tween=>{
-    const t=tween.progress;this.setWalkPose(this.facing,Math.min(3,Math.floor(t*4)));this.mapHero.y=-Math.abs(Math.sin(t*Math.PI*2))*1.5;this.mapShadow.scaleX=1-Math.abs(Math.sin(t*Math.PI*2))*.07;
+    const t=tween.progress;this.setWalkPose(this.facing,Math.min(3,Math.floor(t*4)));this.mapHero.y=-Math.abs(Math.sin(t*Math.PI*2))*.35;this.mapShadow.scaleX=1;
    },onComplete:resolve}));
    this.p.x=x;this.p.y=y;this.movesLeft--;this.moved=this.movesLeft===0;this.mapHero.y=0;
   }
@@ -204,12 +204,12 @@ class Field extends Phaser.Scene{
  }
  setCombatPose(f,i){const p=this.battlePoseData[f.key][i];f.sprite.setTexture(this.spriteKeys[f.key],'pose'+i).setOrigin(p.ax,p.ay).setScale(92/p.bodyHeight);return f;}
  groundShadow(x,y,width=52){
-  // Layered stepped silhouettes read as a grounded pixel shadow, not a UI oval.
+  // A broad soft shadow plus a tight contact patch keeps boots on the ground.
   let g=this.add.graphics();
-  g.fillStyle(0x15221a,.13).fillRect(-width*.48,-5,width*.96,10).fillRect(-width*.34,-8,width*.68,16);
-  g.fillStyle(0x102019,.23).fillRect(-width*.39,-4,width*.78,8).fillRect(-width*.29,-6,width*.58,12);
-  g.fillStyle(0x0d1a16,.28).fillRect(-width*.22,-3,width*.44,6);
-  return this.add.container(x,y,[g]).setDepth(y-2);
+  g.fillStyle(0x15221a,.18).fillEllipse(0,0,width,8);
+  g.fillStyle(0x102019,.32).fillEllipse(0,-1,width*.73,5);
+  g.fillStyle(0x07130d,.55).fillRect(-width*.22,-2,width*.44,3);
+  return this.add.container(x,y,[g]).setDepth(y-8);
  }
  combatFighter(key,y){
   let p=this.battlePoseData[key][0],shadow=this.groundShadow(400,y+3,52),sprite=this.add.image(0,0,this.spriteKeys[key],'pose0').setOrigin(p.ax,p.ay).setScale(92/p.bodyHeight);
@@ -237,7 +237,8 @@ class Field extends Phaser.Scene{
  async videoAttack(a,b,kind,speed,onHit){
   const wait=ms=>new Promise(r=>this.time.delayedCall(ms*speed,r));
   const move=(target,props,ms,ease='Sine.easeInOut')=>new Promise(resolve=>this.tweens.add({targets:target,...props,duration:ms*speed,ease,onComplete:resolve}));
-  const dir=a.dir,home=a.homeY,contact=home+dir*72,dodged=this.rollEvasion(a.key==='north'&&kind==='thrust'?.25:this.dodgeChance);let evasion=null;window.GameAudio?.sfx(kind);
+  const groundMove=(y,ms,ease='Sine.easeInOut')=>new Promise(resolve=>this.tweens.add({targets:a.root,y,duration:ms*speed,ease,onUpdate:()=>{a.shadow.x=a.root.x;a.shadow.y=a.root.y+3;a.shadow.setDepth(a.root.y-1);a.root.setDepth(a.root.y)},onComplete:()=>{a.shadow.x=a.root.x;a.shadow.y=y+3;a.shadow.setDepth(y-1);resolve()}}));
+  const dir=a.dir,home=a.homeY,contact=home+dir*72,dodged=this.rollEvasion(a.key==='north'&&kind==='thrust'?.25:this.dodgeChance);let evasion=null;if(kind==='jump')window.GameAudio?.sfx(kind);
   this.setCombatPose(a,kind==='jump'?0:8);await wait(45);
   if(kind==='jump'){
    this.setCombatPose(a,1);await move(a.root,{y:home-dir*2},70,'Sine.easeOut');
@@ -249,17 +250,23 @@ class Field extends Phaser.Scene{
    this.setCombatPose(a,5);await move(a.root,{y:contact-15},65,'Sine.easeIn');
    this.setCombatPose(a,6);await move(a.root,{y:contact},55,'Cubic.easeIn');
   }else{
-   this.setCombatPose(a,9);await move(a.root,{y:home-dir*2},70,'Sine.easeOut');
-   this.setCombatPose(a,10);await move(a.root,{y:home-dir*5},90,'Sine.easeIn');
+   // Plant the feet, draw the blade back, hold, then release in one fast burst.
+   window.GameAudio?.sfx('thrustCharge');this.setCombatPose(a,9);await groundMove(home-dir*8,140,'Sine.easeOut');
+   this.setCombatPose(a,10);
+   const glint=this.add.graphics().setPosition(a.root.x+18,a.root.y-54).setDepth(590).setAlpha(0).setScale(.35);
+   glint.lineStyle(1,0xe7f8ff,.9).lineBetween(-7,0,7,0).lineBetween(0,-7,0,7);glint.fillStyle(0xffffff).fillRect(-1,-1,2,2);
+   this.tweens.add({targets:glint,alpha:1,scaleX:1.15,scaleY:1.15,duration:290*speed,ease:'Cubic.easeIn'});
+   await wait(330);glint.destroy();
    if(dodged)evasion=this.evade(b,speed);
-   this.setCombatPose(a,11);this.tweens.add({targets:a.shadow,y:contact+3,duration:180*speed});
-   await move(a.root,{y:home+dir*20},70,'Cubic.easeIn');
-   this.setCombatPose(a,12);await move(a.root,{y:home+dir*48},60,'Sine.easeIn');
-   this.setCombatPose(a,13);await move(a.root,{y:contact},50,'Cubic.easeIn');
+   window.GameAudio?.sfx('thrust');
+   const trail=pose=>{const p=this.battlePoseData[a.key][pose],ghost=this.add.image(a.root.x,a.root.y,this.spriteKeys[a.key],'pose'+pose).setOrigin(p.ax,p.ay).setScale(92/p.bodyHeight).setTint(0xb2d3e5).setAlpha(.2).setDepth(a.root.y-2);this.tweens.add({targets:ghost,alpha:0,duration:130*speed,onComplete:()=>ghost.destroy()})};
+   this.setCombatPose(a,11);trail(11);await groundMove(home+dir*24,28,'Cubic.easeIn');
+   this.setCombatPose(a,12);trail(12);await groundMove(home+dir*58,32,'Linear');
+   this.setCombatPose(a,13);await groundMove(contact,20,'Cubic.easeOut');
   }
   a.shadow.setScale(1);a.shadow.alpha=1;
   if(kind==='jump'){let dust=this.add.ellipse(400,contact+5,20,5,0xd4bb7f,.36).setDepth(contact-3);this.tweens.add({targets:dust,scaleX:2.7,scaleY:1.4,alpha:0,duration:220*speed,onComplete:()=>dust.destroy()})}
-a.root.setDepth(a.homeY+dir*45);
+a.root.setDepth(contact);a.shadow.setDepth(contact-1);
   let fx=this.add.graphics().setDepth(90),cx=400,cy=b.homeY-43;
   if(kind==='jump'){fx.lineStyle(10,0xc8e6ff,.45).lineBetween(cx-24,cy-32,cx+24,cy+26);fx.lineStyle(3,0xffffdf).lineBetween(cx-27,cy-35,cx+27,cy+29)}
   else{fx.lineStyle(9,0xd5f2ff,.4).lineBetween(cx,cy-dir*38,cx,cy+dir*22);fx.lineStyle(2,0xffffef).lineBetween(cx,cy-dir*41,cx,cy+dir*26)}
@@ -269,8 +276,8 @@ a.root.setDepth(a.homeY+dir*45);
   onHit(dodged);
   if(dodged){let miss=this.add.text(b.root.x,b.homeY-85,'회피',{fontSize:17,color:'#d9f4ed',stroke:'#294238',strokeThickness:3}).setOrigin(.5).setDepth(111);this.tweens.add({targets:miss,y:miss.y-16,alpha:0,duration:650*speed,onComplete:()=>miss.destroy()});await wait(65)}
   else{this.cameras.main.shake(70*speed,.003);b.sprite.setTintFill(0xe8e5cd);await wait(65);b.sprite.clearTint();this.tweens.add({targets:b.root,y:b.homeY+dir*9,duration:80*speed,yoyo:true})}
-  await wait(100);this.setCombatPose(a,kind==='jump'?7:14);await move(a.root,{y:contact-dir*12},90);
-  this.setCombatPose(a,kind==='jump'?0:15);this.tweens.add({targets:a.shadow,y:home+3,duration:190*speed});await move(a.root,{y:home},190,'Cubic.easeOut');a.root.setDepth(home);this.setCombatPose(a,0);if(evasion)await evasion;await wait(90);
+  await wait(100);this.setCombatPose(a,kind==='jump'?7:14);if(kind==='thrust')await groundMove(contact-dir*8,90,'Cubic.easeOut');else await move(a.root,{y:contact-dir*12},90);
+  this.setCombatPose(a,kind==='jump'?0:15);if(kind==='jump')this.tweens.add({targets:a.shadow,y:home+3,duration:190*speed});if(kind==='thrust')await groundMove(home,230,'Sine.easeInOut');else await move(a.root,{y:home},190,'Cubic.easeOut');a.root.setDepth(home);a.shadow.setDepth(home-1);this.setCombatPose(a,0);if(evasion)await evasion;await wait(90);
  }
  async ultimateAttack(a,b,speed,onHit,forceHit=false){
   const wait=ms=>new Promise(r=>this.time.delayedCall(ms*speed,r));
@@ -305,7 +312,7 @@ a.root.setDepth(a.homeY+dir*45);
   };
   if(dodged){const p=this.evasionPoseData[b.key][0];b.sprite.setTexture(this.spriteKeys.evade,b.key+'0').setOrigin(p.ax,p.ay).setScale(92/p.bodyHeight);this.tweens.add({targets:b.shadow,x:475,duration:100*speed});await move(b.root,{x:475},100,'Cubic.easeOut');combo.setText('MISS');comboSub.setText('적이 검로를 벗어났다')}
   // Approach once; every rapid cut shares this same ground position.
-  a.root.setDepth(350);this.setCombatPose(a,11);await move(a.root,{x:400,y:302},160,'Cubic.easeOut');a.shadow.x=400;a.shadow.y=305;
+  a.root.setDepth(350);a.shadow.setDepth(349);this.setCombatPose(a,11);await move(a.root,{x:400,y:302},160,'Cubic.easeOut');a.shadow.x=400;a.shadow.y=305;
   const prep=[2,10,5,12,2,10,5,12],strike=[5,12,6,13,5,12,6,13];
   for(let i=0;i<8;i++){
    this.setCombatPose(a,prep[i]);await wait(22);ghost(prep[i]);this.setCombatPose(a,strike[i]);quickCut(i);window.GameAudio?.sfx('cut');
@@ -325,7 +332,7 @@ a.root.setDepth(a.homeY+dir*45);
   let shock=this.add.ellipse(400,306,28,7,0xc7e5ff,.32).setDepth(79);this.tweens.add({targets:shock,scaleX:5,scaleY:2.1,alpha:0,duration:300*speed,onComplete:()=>shock.destroy()});
   for(let i=0;i<14;i++){const t=i/13,sign=i%2?1:-1;let shard=this.add.rectangle(cx-42+t*84,cy-75+t*150,2,5,0xe1f5ff).setRotation(-.5).setDepth(545);this.tweens.add({targets:shard,x:cx-42+t*84+sign*(20+i%3*10),y:cy-75+t*150-12,alpha:0,duration:(260+i%4*55)*speed,onComplete:()=>shard.destroy()})}
   if(!dodged){onHit(false,14,8);b.sprite.setTintFill(0xf4fbff);combo.setText('9 HIT');combo.setColor('#ffe2a4');comboSub.setText('FINISH · 만월단');this.cameras.main.shake(140*speed,.008);this.cameras.main.flash(75*speed,155,190,225);await wait(90);b.sprite.clearTint()}else{onHit(true,0,8);combo.setText('회피');comboSub.setText('피해 0');await wait(90)}
-  await wait(300);this.setCombatPose(a,7);await move(a.root,{y:316},100);this.setCombatPose(a,0);this.tweens.add({targets:a.shadow,x:400,y:a.homeY+3,duration:240*speed});await move(a.root,{x:400,y:a.homeY},240,'Cubic.easeOut');a.root.setDepth(a.homeY);
+  await wait(300);this.setCombatPose(a,7);await move(a.root,{y:316},100);this.setCombatPose(a,0);this.tweens.add({targets:a.shadow,x:400,y:a.homeY+3,duration:240*speed});await move(a.root,{x:400,y:a.homeY},240,'Cubic.easeOut');a.root.setDepth(a.homeY);a.shadow.setDepth(a.homeY-1);
   if(dodged){this.setCombatPose(b,0);this.tweens.add({targets:b.shadow,x:400,duration:180*speed});await move(b.root,{x:400,y:b.homeY},180)}
   await wait(180);await move(dark,{fillAlpha:0},230);dark.destroy();combo.destroy();comboSub.destroy();
  }
