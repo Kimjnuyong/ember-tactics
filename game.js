@@ -418,12 +418,41 @@ a.root.setDepth(contact);a.shadow.setDepth(contact-1);
   await Promise.all([move(portrait,{x:900,alpha:0},180),move(panel,{alpha:0},180),move(edge,{alpha:0},180),move(label,{alpha:0},180),move(title,{alpha:0},180)]);
   for(const o of [panel,edge,portrait,label,title])o.destroy();
  }
- // Effects use a two-pixel grid and clustered palette ramps, like the character art.
- pixelFlame(g,cx,cy,size,phase=0){
-  const palette=[0x9b382d,0xd55224,0xf5872b,0xffbc55,0xffe7a0];
-  for(let py=-size;py<=size*.45;py+=2)for(let px=-size*.6;px<=size*.6;px+=2){
-   const nx=px/size,ny=py/size,w=.46*(1-Math.max(0,-ny)*.7),flicker=Math.sin(py*.6+phase*1.7)*.09;
-   if(Math.abs(nx+flicker)<w&&ny>-.8-Math.sin(px*.5+phase)*.2){const heat=1-Math.abs(nx)/w-Math.max(0,-ny)*.55;g.fillStyle(palette[Math.max(0,Math.min(4,Math.floor(heat*5)))]).fillRect(Math.round((cx+px)/2)*2,Math.round((cy+py)/2)*2,2,2)}
+ hammerEnergy(charge,x,y,frame){
+  charge.clear();const snap=n=>Math.round(n/2)*2,p=frame/11;
+  // Cold white-gold energy converges on the held hammer, like the thrust glint.
+  for(let j=0;j<18;j++){
+   const angle=j*2.399,cycle=(p+j/18)%1,r=66*(1-cycle),px=x+Math.cos(angle)*r,py=y+Math.sin(angle)*r*.65;
+   for(let tail=3;tail>=0;tail--){const d=r+tail*3;charge.fillStyle(tail>1?0x8db5cf:0xf7edc8,(1-tail/4)*.8).fillRect(snap(x+Math.cos(angle)*d),snap(y+Math.sin(angle)*d*.65),2,2)}
+   charge.fillStyle(0xfff5da,.9).fillRect(snap(px),snap(py),2,2);
+  }
+  for(let ring=0;ring<2;ring++){
+   const radius=10+(1-(p+ring*.5)%1)*34;
+   for(let j=0;j<48;j++){const a=j*Math.PI/24;if((j+frame)%7<2)continue;charge.fillStyle(0xb7d9ea,.3+.3*p).fillRect(snap(x+Math.cos(a)*radius),snap(y+Math.sin(a)*radius*.62),2,2)}
+  }
+  const len=4+Math.floor(p*10),core=2+Math.floor(p*2)*2;
+  charge.fillStyle(0x97bfd5,.3).fillRect(snap(x-len),snap(y-2),len*2,4).fillRect(snap(x-2),snap(y-len),4,len*2);
+  charge.fillStyle(0xe5eff1,.85).fillRect(snap(x-len),snap(y),len*2,2).fillRect(snap(x),snap(y-len),2,len*2);
+  charge.fillStyle(0xfff8df).fillRect(snap(x-core/2),snap(y-core/2),core,core);
+ }
+ hammerVortex(back,front,x,y,phase,power=1){
+  back.clear();front.clear();const snap=n=>Math.round(n/2)*2;
+  // A helical volume: rear ribbons pass behind the body, front ribbons cross it.
+  for(let strand=0;strand<3;strand++){
+   const offset=strand*2.1,radius=78+strand*8;
+   for(let step=0;step<92;step++){
+    const t=step/91,angle=phase+offset+t*4.65,sin=Math.sin(angle),cos=Math.cos(angle),g=sin<0?back:front;
+    const curl=Math.sin(t*Math.PI),width=(2+6*curl)*power;
+    const px=x+cos*(radius+Math.sin(t*9+phase)*3),py=y-48+sin*25+(t-.5)*26+(strand-1)*13;
+    // Overlapping, shaded two-pixel clusters make a continuous twisting flame band.
+    const palette=sin<0?[0xa8472c,0xd96829,0xf4a33e]:[0xc15128,0xf38529,0xffbc50];
+    for(let band=0;band<3;band++){
+     const w=Math.max(2,Math.round(width*(1-band*.26)/2)*2);
+     g.fillStyle(palette[band],sin<0?.66:.94).fillRect(snap(px-w/2),snap(py-w*.35-band),w,Math.max(2,snap(w*.7)));
+    }
+    if(step%13===strand*2){const tip=8+curl*7;for(let k=0;k<tip;k+=2){g.fillStyle(k<4?0xffde87:0xeb7a2a,.9).fillRect(snap(px-cos*k*.5),snap(py-k),Math.max(2,snap(6-k*.22)),2)}}
+    if(curl>.5&&step%3!==0)g.fillStyle(0xffe6a0,.8).fillRect(snap(px),snap(py-2),2,2);
+   }
   }
  }
  hammerGroundImpact(x,y,speed){
@@ -463,18 +492,22 @@ a.root.setDepth(contact);a.shadow.setDepth(contact-1);
  }
  hammerSpinImpact(x,y,speed){
   window.GameAudio?.sfx('bossFireImpact');
-  // Seven discrete pixel explosion cels: hot core, curling fire, then embers.
-  for(let frame=0;frame<7;frame++)this.time.delayedCall((55+frame*55)*speed,()=>{
-   const g=this.add.graphics().setDepth(590),radius=14+frame*9;
-   for(let j=-22;j<=22;j++)for(let i=-34;i<=34;i++){
-    const px=i*2,py=j*2,r=Math.sqrt(px*px+py*py*1.8),angle=Math.atan2(py,px),edge=radius*(.83+.12*Math.sin(angle*7+frame));
-    if(r<edge&&r>Math.max(0,radius-frame*9-15)){
-     const noise=(i*13+j*7+frame*11+900)%17;if(noise<2+frame)continue;
-     const heat=(edge-r)/Math.max(10,radius*.5),palette=frame<3?[0xbc4526,0xec6a25,0xffa638,0xffdb76,0xfff0c0]:[0x78382a,0xbc4e28,0xf17b2e,0xffbc55];
-     g.fillStyle(palette[Math.min(palette.length-1,Math.floor(heat*palette.length))]).fillRect(Math.round((x+px)/2)*2,Math.round((y+py)/2)*2,2,2);
-    }
+  // Compact pressure flash opens into a solid, lobed pixel blast, then smoke.
+  const timing=[0,35,75,120,180,250,335,425];
+  for(let frame=0;frame<8;frame++)this.time.delayedCall(timing[frame]*speed,()=>{
+   const g=this.add.graphics().setDepth(590),radius=[12,26,42,52,57,59,56,51][frame];
+   for(let j=-28;j<=28;j++)for(let i=-34;i<=34;i++){
+    const px=i*2,py=j*2,r=Math.sqrt(px*px+py*py*1.45),angle=Math.atan2(py,px);
+    const edge=radius*(.84+.1*Math.sin(angle*5+frame*.25)+.06*Math.cos(angle*9-frame*.2));
+    if(r>=edge)continue;
+    const heat=1-r/edge,fold=Math.sin(px*.15+py*.11+frame)*.12;
+    const palette=frame<2?[0xf28a32,0xffc65e,0xffe6a0,0xfff5d6]:frame<5?[0xa64a2e,0xdd6429,0xf99832,0xffd176,0xffe7a0]:[0x574538,0x796047,0xb27443,0xe59648];
+    const index=Math.max(0,Math.min(palette.length-1,Math.floor((heat+fold)*palette.length)));
+    if(frame>5&&heat>.65)continue;
+    g.fillStyle(palette[index],frame>5?.85:1).fillRect(Math.round((x+px)/2)*2,Math.round((y+py)/2)*2,2,2);
    }
-   this.time.delayedCall(60*speed,()=>g.destroy());
+   if(frame<2)for(let ray=0;ray<8;ray++){const angle=ray*Math.PI/4;for(let d=10;d<44-frame*8;d+=2)g.fillStyle(d<24?0xfff4cf:0xffcc70).fillRect(Math.round((x+Math.cos(angle)*d)/2)*2,Math.round((y+Math.sin(angle)*d*.8)/2)*2,2,2)}
+   this.time.delayedCall((frame===7?90:timing[frame+1]-timing[frame]+5)*speed,()=>g.destroy());
   });
   for(let i=0;i<22;i++){const a=i*2.399,p=this.add.graphics().setPosition(x,y).setDepth(595);p.fillStyle(0xf77a2a).fillRect(-2,-2,4,4);p.fillStyle(0xffe2a1).fillRect(0,-2,2,2);this.tweens.add({targets:p,x:x+Math.cos(a)*(30+i%7*11),y:y+Math.sin(a)*(20+i%4*12)-12,alpha:0,delay:70*speed,duration:(250+i%4*65)*speed,onComplete:()=>p.destroy()})}
   this.cameras.main.flash(45*speed,255,217,155);this.cameras.main.shake(230*speed,.012);
@@ -489,29 +522,21 @@ a.root.setDepth(contact);a.shadow.setDepth(contact-1);
    this.setBossPose(a,2);await wait(290);if(dodged)dodgeMotion=this.evade(b,speed);window.GameAudio?.sfx('bossSlam');this.setBossPose(a,3);await move(home+57,110);
    this.hammerGroundImpact(a.root.x,a.root.y+23,speed);
   }else{
-   // Visible ignition on the held hammer, then a weighty swing and impact hold.
    this.setBossPose(a,0,true);window.GameAudio?.sfx('bossSpinCharge');
-   const charge=this.add.graphics().setDepth(580),hx=a.root.x-55,hy=a.root.y-74;
-   for(let frame=0;frame<6;frame++){
-    charge.clear();this.pixelFlame(charge,hx,hy,12+frame*3,frame);
-    for(let j=0;j<8;j++){const angle=j*.785+frame*.34,r=38-frame*4,px=Math.round((hx+Math.cos(angle)*r)/2)*2,py=Math.round((hy+Math.sin(angle)*r*.65)/2)*2;charge.fillStyle(j%2?0xffcf75:0xf17b35,.8).fillRect(px,py,2,4)}
-    await wait(130);
-   }
+   const charge=this.add.graphics().setDepth(580),hx=a.root.x-81,hy=a.root.y-59;
+   for(let frame=0;frame<12;frame++){this.hammerEnergy(charge,hx,hy,frame);await wait(65)}
    charge.destroy();if(dodged)dodgeMotion=this.evade(b,speed);await move(home+48,95);window.GameAudio?.sfx('bossSpin');
-   const frames=[85,70,55,45,45,60,90,115],hammerHeads=[[-55,-74],[-69,-62],[-73,-42],[-40,-23],[22,-22],[66,-42],[57,-67],[4,-79]];
+   const frames=[85,70,55,45,45,60,90,115],back=this.add.graphics().setDepth(a.root.depth-1),front=this.add.graphics().setDepth(a.root.depth+1);
    for(let i=0;i<8;i++){
-    this.setBossPose(a,i,true);
-    const fire=this.add.graphics().setDepth(i<3?495:585),[dx,dy]=hammerHeads[i];
-    // Flames cling to each hammer pose; a short fading trail follows the head.
-    for(let j=3;j>=0;j--){const prev=hammerHeads[Math.max(0,i-1)],mix=j/5;this.pixelFlame(fire,a.root.x+dx+(prev[0]-dx)*mix,a.root.y+dy+(prev[1]-dy)*mix,22-j*4,i+j)}
-    this.tweens.add({targets:fire,alpha:0,delay:(i===6?170:30)*speed,duration:160*speed,onComplete:()=>fire.destroy()});
+    this.setBossPose(a,i,true);this.hammerVortex(back,front,a.root.x,a.root.y,i*Math.PI/4,1);
     if(i===6){
      this.hammerSpinImpact(b.root.x,b.homeY-48,speed);onHit(dodged);struck=true;
      if(!dodged)b.sprite.setTintFill(0xffdfa0);
      await wait(dodged?80:180);b.sprite.clearTint();
     }
-    await wait(frames[i]);
+    for(let sub=0;sub<3;sub++){this.hammerVortex(back,front,a.root.x,a.root.y,(i+sub/3)*Math.PI/4,1-i/24);await wait(frames[i]/3)}
    }
+   back.destroy();front.destroy();
   }
   if(!struck)onHit(dodged);
   if(!dodged){b.sprite.setTintFill(0xffddbd);this.cameras.main.shake(180*speed,skill===0?.009:.006);await wait(90);b.sprite.clearTint()}else{const miss=this.add.text(b.root.x,b.homeY-90,'회피',{fontSize:17,color:'#d9f4ed',stroke:'#294238',strokeThickness:3}).setOrigin(.5).setDepth(600);this.tweens.add({targets:miss,y:miss.y-14,alpha:0,duration:650*speed,onComplete:()=>miss.destroy()});await wait(90)}
